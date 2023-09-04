@@ -1,0 +1,556 @@
+//*********************************************************************************
+
+fsm Eaton03_BanditHideaway : integer;
+
+//------------------------------------------------------------------
+//
+//	 Constant Definitions
+//
+//------------------------------------------------------------------
+	 const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi> // <-- mektek
+//------------------------------------------------------------------
+//
+//	 Type Definitions
+//
+//------------------------------------------------------------------
+	 type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//	 Variable Declarations
+//
+//------------------------------------------------------------------
+	  var
+
+		eternal integer		playermech;			// This is the variable for the player's 'Mech
+			
+		// Standard Nav and Objective Variables
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+												//
+		static boolean		alpharevealed;		// Nav Alpha is shown
+		static boolean		betarevealed;		// Nav Beta is shown
+		static boolean		gammarevealed;		// Nav Gamma is shown
+		static boolean		deltarevealed;		// Nav Delta is shown
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+												//
+		eternal boolean		obj1;				// This indicates whether Objective 1 was completed
+		eternal boolean		obj2;				// This indicates whether Objective 2 was completed
+		eternal boolean		obj3;				// This indicates whether Objective 3 was completed
+		eternal boolean		obj4;				// This indicates whether Objective 4 was completed
+		eternal boolean		obj5;				// This indicates whether Objective 5 was completed
+												//
+		static boolean		obj1revealed;		// This indicates that Objective 1 has been revealed
+		static boolean		obj2revealed;		// This indicates that Objective 2 has been revealed
+		static boolean		obj3revealed;		// This indicates that Objective 3 has been revealed
+		static boolean		obj4revealed;		// This indicates that Objective 4 has been revealed
+		static boolean		obj5revealed;		// This indicates that Objective 5 has been revealed
+		//	
+		
+		static integer		cinema_cut;			// This variable keeps track of what scene a cinema is on.
+		static locpoint		temploc;			// Used for commands that need objects converted to locpoint format
+		static boolean		loser;				// You have lost the mission
+ 		eternal integer 	DavionRating;		// This is your Davion rating
+		eternal integer 	SteinerRating;		// This is your Steiner rating
+		eternal integer 	Nobility;			// This is your Nobility rating
+		eternal integer 	Infamy;				// This is your Infamy rating
+ 
+		// Trigger States
+		static integer		ThunderDelay;		// Thunder every now and then
+		eternal boolean		FirstContact;		// Enemies have made the PC or allies
+		static integer		ThunderTimer;		// How long until the next thunder strike		
+		eternal integer		HeloTimer;			// How long on timer 3 before choppers come in
+		eternal boolean		TransportRun;		// Transport vehicles flee now
+		
+//------------------------------------------------------------------
+//
+//	 Init Function	(automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+			playermech = getplayervehicle(epl_player0);
+			//SetSearchLight(PlayerMech, False);
+			SetSearchLight(eve_argus, False);
+			
+			if (GetLancemate(1)<>NO_UNIT) then
+				SetSearchLight(GetLancemate(1),False);
+			endif;
+			if (GetLancemate(2)<>NO_UNIT) then
+				SetSearchLight(GetLancemate(2),False);
+			endif;
+			if (GetLancemate(3)<>NO_UNIT) then
+				SetSearchLight(GetLancemate(3),False);
+			endif;
+
+			// 10 - Allied Vehicles
+			GroupAddObject(GroupObjectID(10),eve_pcconvoy01);
+			GroupAddObject(GroupObjectID(10),eve_pcconvoy02);
+			GroupAddObject(GroupObjectID(10),eve_pcconvoy03);
+			GroupAddObject(GroupObjectID(10),eve_pcconvoy04);
+			GroupAddObject(GroupObjectID(10),eve_pctank01);
+			GroupAddObject(GroupObjectID(10),eve_pctank02);
+			GroupAddObject(GroupObjectID(10),eve_pctank03);
+			GroupAddObject(GroupObjectID(10),eve_pctank04);
+			GroupAddObject(GroupObjectID(10),eve_pctank05);
+			SetGroupAI(GroupObjectID(10),GROUPAI_MOODSQUAD);
+
+			// 20 - Bandit Base
+			GroupAddObject(GroupObjectID(20),ebu_airportbldg);
+			GroupAddObject(GroupObjectID(20),ebu_basehq);
+			GroupAddObject(GroupObjectID(20),ebu_factory1);
+			GroupAddObject(GroupObjectID(20),ebu_factory3);
+			GroupAddObject(GroupObjectID(20),ebu_factory3_0001);
+			GroupAddObject(GroupObjectID(20),ebu_factory4);
+			//GroupAddObject(GroupObjectID(20),ebu_factory_bldg_merc1);
+			GroupAddObject(GroupObjectID(20),ebu_mech_repair_bldg);
+			GroupAddObject(GroupObjectID(20),etu_perimeter_turret01);
+			GroupAddObject(GroupObjectID(20),etu_perimeter_turret02);
+			GroupAddObject(GroupObjectID(20),etu_perimeter_turret03);
+			GroupAddObject(GroupObjectID(20),etu_perimeter_turret04);
+			GroupAddObject(GroupObjectID(20),etu_perimeter_turret05);
+			GroupAddObject(GroupObjectID(20),ebu_univ_dormlg);
+			GroupAddObject(GroupObjectID(20),ebu_vehicle_hangar2);
+			GroupAddObject(GroupObjectID(20),ebu_weapon_warehouse);
+
+			//SetTargetDesirability(etu_perimeter_turret01,-1);
+			//SetTargetDesirability(etu_perimeter_turret02,-1);
+			//SetTargetDesirability(etu_perimeter_turret03,-1);
+			//SetTargetDesirability(etu_perimeter_turret04,-1);
+			//SetTargetDesirability(etu_perimeter_turret05,-1);
+
+			// 21 - Base Enemies
+			GroupAddObject(GroupObjectID(21),eve_basemech01);
+			GroupAddObject(GroupObjectID(21),eve_basemech02);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle01);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle02);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle03);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle04);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle05);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle06);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle01);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle08);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle09);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle10);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle11);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle12);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle13);
+			GroupAddObject(GroupObjectID(21),eve_basevehicle14);
+			
+			// 22 - Fleeing Transport Vehicles
+			GroupAddObject(GroupObjectID(22),eve_fleer01);
+			GroupAddObject(GroupObjectID(22),eve_fleer02);
+			GroupAddObject(GroupObjectID(22),eve_fleer03);
+			
+			// 23 - Enemy Air
+			GroupAddObject(GroupObjectID(23),eve_air01);
+			GroupAddObject(GroupObjectID(23),eve_air02);
+			GroupAddObject(GroupObjectID(23),eve_air03);
+			GroupAddObject(GroupObjectID(23),eve_air04);
+			GroupAddObject(GroupObjectID(23),eve_air05);
+			GroupAddObject(GroupObjectID(23),eve_air06);
+			GroupAddObject(GroupObjectID(23),eve_air07);
+			
+			//SetGroupAI(GroupObjectID(20),GROUPAI_MOODSQUAD);
+
+			cinema_cut = 0;
+
+			// Culturals
+			//SetTarget(ede_example2,eve_example3);
+		
+endfunction;
+
+	#include_ <content\ABLScripts\Katie\katie_script.abi>
+//------------------------------------------------------------------
+//
+//	 Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+/*	MekTek: Shark removed these and replaced them with katie calls
+			SetKillSalvageChance(eve_basemech01,50);	// Argus
+			SetKillSalvageChance(eve_basemech02,100);	// Osiris
+*/
+		// These are your MetaMission variables, second part is how this mission effects your ratings
+			DavionRating 	= GetPreviousDavionFactionRating;
+			SteinerRating 	= GetPreviousSteinerFactionRating;
+			Nobility 		= GetPreviousNobility;
+			Infamy 			= GetPreviousInfamy;
+			
+			DavionRating	= DavionRating + 4;
+			SteinerRating	= SteinerRating - 2;
+			Nobility		= Nobility + 0;
+			Infamy			= Infamy + 4;
+		// 
+		
+		SetRadarNav(ena_Nav_Alpha,1);
+		RevealNavpoint(ena_Nav_Alpha);
+		SetNavpoint(ena_Nav_Alpha);
+
+		//setsensorvisibility(eve_example4,false);
+		
+		checkrange	= 100;		// How far from a nav point before the Betty voice says you've arrived.
+
+		//StartMusic("Music\NextMove",3.0,3.5,50);   Leave it as rain for now
+		StartMusic("VO\Rain1",0.1,0.1,300);
+		ThunderTimer = 0;
+		HeloTimer = 90;
+		StartTimer(4);		// Thunder timer
+		
+		trans opening;
+		//trans won;
+
+endstate;
+
+	
+state deadState;
+	code
+	
+endstate;
+	
+//------------------------------------------------------------------
+//
+//	 Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+
+	if IsMusicPlaying == false then
+		StartMusic("VO\Rain1",0.1,0.1,300);
+	endif;
+	
+	if (timegreater(4,ThunderTimer)) then	// Play thunder every now and then
+		PlayVoiceOver("VO\Thunder1",TALKER_ERI);
+		ResetTimer(4);
+		ThunderTimer = Rand(30,90);
+	endif;
+	
+// Sound Triggers
+
+	if (not GetGlobalTrigger(3)) then
+		if (not IsDead(etu_perimeter_turret04)) and (not IsDead(PlayerMech)) then
+			if (WhoShot(PlayerMech)==etu_perimeter_turret04) then		// A few seconds after the turrets fire, then play VO
+				SetGlobalTrigger(3,true);
+				PlayVoiceOverOnce("vo\eaton\mi3\looksharp",TALKER_SPE);
+				PlayLanceMateSound("vo\generic\roger",1);
+			endif;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(4)) then
+		if (IsWithin(PlayerMech,GroupObjectID(21),600)) then	// If you get 600m w/n tanks
+			SetGlobalTrigger(4,true);
+			if (PlayLanceMateSound("vo\generic\demolishers",1)) then
+				PlayVoiceOverOnce("vo\eaton\mi3\takethematrange",TALKER_SPE);
+			else
+				PlayVoiceOverOnce("VO\Generic\MultipleContacts2",TALKER_CAS);
+				PlayVoiceOverOnce("vo\eaton\mi3\takethematrange",TALKER_SPE);				
+			endif;
+			StartMusic("Music\Hunter",3.0,3.5,50);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(5)) then
+		if (timegreater(3,HeloTimer + 3)) then
+			SetGlobalTrigger(5,true);
+			PlayVoiceOverOnce("vo\eaton\mi3\squadofchoppers",TALKER_CAS);
+			PlayVoiceOverOnce("vo\eaton\mi3\Airfield",TALKER_SPE);
+			PlayVoiceOverOnce("vo\eaton\mi3\camouflaged",TALKER_CAS);
+			PlayVoiceOverOnce("vo\eaton\mi3\rogerannoyed",TALKER_SPE);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(6)) then
+		if (timegreater(3,HeloTimer + 25)) then		// 25s before helos take off, units flee
+			TransportRun = True;
+			SetGlobalTrigger(6,true);
+			if (not GroupAllDead(GroupObjectID(22))) then			
+				PlayVoiceOverOnce("vo\eaton\mi3\MissionObjective",TALKER_CAS);
+			endif;
+			RevealObjective(eob_objective3);
+		endif;
+	endif;
+	
+// Eaton 03 Specific Triggers
+
+	if (not GetGlobalTrigger(2)) then
+		if (FirstContact) then
+			StartTimer(3);		// This is the timer for when vehicles get up and running
+			SetGlobalTrigger(2,true);
+		endif;
+	endif;
+
+// Obj 1 - Destroy all enemies at the base
+
+	if (not Obj1) then
+		if (GroupAllDead(GroupObjectID(21))) and GroupAllDead(GroupObjectID(23)) then
+			Obj1 = True;
+			SuccessObjective(eob_objective1);
+			PlayVoiceOverOnce("vo\eaton\mi3\RogerDefendersElim",TALKER_SPE);
+			PlayLanceMateSound("vo\generic\ThatTheLast",1);
+			if (obj2) then
+				StartTimer(2);		// You're a winner
+				if (not Obj3) then
+					FailObjective(eob_objective3);
+				endif;
+				PlayVoiceOverOnce("vo\eaton\mi3\ReportingSuccess",TALKER_CAS);
+			endif;
+		endif;
+	endif;
+
+// Obj 2 - Level the base at Nav Alpha
+
+	if (not Obj2) then
+		if (GroupAllDead(GroupObjectID(20))) then
+			SuccessObjective(eob_objective2);
+			Obj2 = True;
+			PlayVoiceOverOnce("vo\eaton\mi3\BuildingsDestroyed",TALKER_SPE);
+			if (obj1) then
+				StartTimer(2);		// You're a winner
+				if (not Obj3) then
+					FailObjective(eob_objective3);
+				endif;
+				PlayVoiceOverOnce("vo\eaton\mi3\ReportingSuccess",TALKER_CAS);
+			endif;
+		endif;
+	endif;
+	
+// Obj 3 - Destroy fleeing transport vehicles
+
+	if (not Obj3) then
+		if (GroupAllDead(GroupObjectID(22))) then
+			Obj3 = True;
+			Infamy = Infamy + 3;		// Destroying fleeing vehicles is kinda mean
+			SuccessObjective(eob_objective3);
+			PlayVoiceOverOnce("vo\eaton\mi3\ReportStatus",TALKER_CAS);
+			PlayVoiceOverOnce("vo\eaton\mi3\LooseEnds",TALKER_SPE);
+			AddMissionMoneyToBalance (150000);
+		endif;
+	endif;
+
+// Victory and Loss conditions
+													   
+	if (timegreater(2,5)) then
+		  
+		// Salvage - FAB  7/30
+			if (not IsDead(eve_Argus)) then
+				AddMechInstanceSalvage("Catapult");
+			endif;
+			AddWeaponSalvage("RotaryAC2",2);
+			AddWeaponSalvage("RotaryAC5",1);
+			AddWeaponSalvage("MediumXPulseLaser",3);
+			AddWeaponSalvage("SRM4",2);
+			AddWeaponSalvage("SRM6",3);
+			AddWeaponSalvage("Machinegun",5);
+			AddWeaponSalvage("LongTom",1);
+			AddWeaponSalvage("SmallLaser",5);
+		//
+
+		SetCurrentInfamy(Infamy);
+		SetCurrentNobility(Nobility);
+		SetCurrentDavionFactionRating(DavionRating);
+		SetCurrentSteinerFactionrating(SteinerRating);
+		
+		/////////////////////
+		// MISSION SALVAGE //
+		/////////////////////
+
+		Katie(eve_basemech01,80);
+		Katie(eve_basemech02,60); 
+		
+		if (loser) then
+			EndMission(false,5);
+			trans lost;
+		else
+			trans won;	
+		endif;
+		
+	endif;
+
+// Fail the mission when the player dies
+	if (isdead(playermech)) then
+		KillVoiceOvers;
+		switch rand(1,3)
+			case 1:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+			endcase;
+			case 2:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+			endcase;
+			case 3:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+			endcase;
+		endswitch;
+		StartMusic("Music\GenericLoss1",3.0,3.5,70);
+		endmission(false,14);
+		trans deadstate;
+	endif;
+
+// Betty speaks when reaching Nav Point
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;	  
+
+	code
+
+		if (cinemaskip) then
+			KillVoiceOvers;	 
+			cinema_cut = 0;	 
+			KillTimer(gti_timer_21);
+			SetGlobalTrigger(0,true);
+			playerai(epl_player0,false);
+			StartTimer(1);		// This is the mission start timer
+			ResetTimer(1);
+			CinemaEnd;		  
+			SetCompositingEnabled(True);
+			revealobjective(eob_objective1);
+			RevealObjective(eob_objective2);
+			HelpMessage(eob_lightamp,10);
+			trans sit;
+		endif;
+		
+		switch (cinema_cut)
+
+			case 0:
+				CinemaStart;
+				SetActiveCamera(eca_CameraShip);
+				
+				FadeToBlack(0.0);
+				FadeFromBlack(5.0);
+				
+				HeadOnCamera(PlayerMech,PlayerMech,2.0,17.0,true);
+				PlayVoiceOverOnce("vo\eaton\mi3\intro1",TALKER_CAS);
+				PlayVoiceOverOnce("vo\eaton\mi3\intro2",TALKER_SPE);
+				PlayVoiceOverOnce("vo\eaton\mi3\intro3",TALKER_SPE);
+				PlayLanceMateSound("vo\generic\besteffort",1);
+				
+				cinema_cut = cinema_cut + 1;
+				
+				starttimer(21);			// This is the cineractive counter.
+				resettimer(21);
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					ResetTimer(21);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;
+			
+			case 2:
+				if (timegreater(21,2)) then
+					KillVoiceOvers;
+					cinema_cut = 0;
+					KillTimer(gti_timer_21);
+					SetGlobalTrigger(0,true);
+					playerai(epl_player0,false);
+					StartTimer(1);		// This is the mission start timer
+					ResetTimer(1);
+					CinemaEnd;
+					revealobjective(eob_objective1);	// Reveal the objectives
+					RevealObjective(eob_objective2);
+					SetCompositingEnabled(True);
+					HelpMessage(eob_lightamp,10);
+					
+					trans sit;
+				endif;
+			endcase;
+				
+		endswitch;
+	
+endstate;
+
+state won;	  
+
+	code
+		
+		if (cinemaskip) then
+			cinema_cut = 20;	
+			playerai(epl_player0,false);
+			KillVoiceOvers;
+			Endmission(true,1); 
+		endif;
+
+		switch cinema_cut
+		
+			case 0:	
+				StartMusic("Music\GenericVictory1",3.0,3.5,50);					 
+				PlayVoiceOverOnce("vo\eaton\mi3\Close1",TALKER_SPE);
+				PlayLanceMateSound("vo\generic\Amused",1);
+				PlayVoiceOverOnce("vo\eaton\mi3\Close2",TALKER_CAS);
+				//PlayVoiceOverOnce("VOX\OP5\MI3\Victory",talker_BAD);
+				SetCompositingEnabled(False);
+				CinemaStart;
+				setactivecamera (eca_cameraship);
+				Targetfollowobject(ena_nav_alpha);
+				Camerafollowobject(ena_nav_alpha);
+				targetoffset(0.0,29.0,0.0,0.0,false);
+				targetoffset(0.0,29.0,0.0,15.0,false);
+				Cameraoffset(15.0,32.0,55.0,0.0,true);
+				Cameraoffset(15.0,32.0,-45.0,15.0,true);
+				playerai(epl_player0,true);
+				Cinema_cut=Cinema_cut+1;
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					Cinema_cut=20;
+					endmission(true,2);
+				endif;
+			endcase;			
+			
+		endswitch;
+	
+endstate;
+
+state lost;
+
+		code
+		
+		switch cinema_cut
+		
+			case 0:	
+			
+			endcase;
+			
+			case 1:
+			
+			endcase;
+			
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************

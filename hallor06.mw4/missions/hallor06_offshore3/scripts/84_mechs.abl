@@ -1,0 +1,135 @@
+//*********************************************************************************
+
+fsm H06_mechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static integer			MoveType;		
+		static boolean			pathEndReached;
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static integer			launchDelay;
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		launchDelay				= 150;
+		pathEndReached 			= false;
+		unitPath 				= epa_CobraPath;
+		GetLocation(me, SpawnPoint);
+		shutdown(me);
+		teleportToHell(me);
+		
+
+endfunction;
+		
+state StartState;
+
+	code
+	
+		if angryCobras then
+			skillLevel = skillLevel + 1;
+		endif;
+		
+		AssignSkill(skillLevel);
+		resetTimer(25);
+		trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	
+	if timeGreater(25, launchDelay) or groupAllDead(GroupObjectID(25)) then
+		teleport(me, spawnPoint);
+		startup(me);
+		launchPlanes = true;				// Choppers Launch when Cobras show up
+		StartMusic("Music\imminentaction",3.5,3.0,50);
+		trans sit;
+	endif;
+	
+endstate;		
+
+state sit;
+	code
+		if (not pathEndReached) then
+			if OrderMoveResumePatrol(unitPath, 200, MoveType, true, true) then
+				pathEndReached = true;
+			endif;
+		else
+			OrderMoveLookout;
+		endif;
+		
+		if FindEnemy(attackRange, FT_DEFAULT+FT_BUILDING+FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

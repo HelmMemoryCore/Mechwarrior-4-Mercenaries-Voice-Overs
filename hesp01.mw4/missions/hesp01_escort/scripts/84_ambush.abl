@@ -1,0 +1,132 @@
+//*********************************************************************************
+
+fsm Ambush : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			noJumpRange;	// At what range do I stop jumping?
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static Boolean			spotted;		// Has the player been seen
+
+
+ function Init;
+	code
+		// script-specific variables
+		noJumpRange				= 150;					   
+		attackRange				= 600;						
+		withdrawRange			= 2000; 
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		spotted					= false;					// has the ambush been triggered?
+		
+		if (memint9 == 1) then
+			spotted = true;
+			attackRange = 800;
+			setSensorvisibility(me, false);
+		endif;
+
+endfunction;
+		
+state StartState;
+
+	code
+		AssignSkill(skillLevel);
+		if (memint9 == 1) then
+			if blowBridge then
+				setSensorvisibility(me, true);
+                trans sit;
+			endif;
+			if IsShot(me) then
+				setSensorvisibility(me, true);
+                trans sit;
+			endif;
+		else 	
+			shutdown(me);
+			trans waitState; 	
+		endif;
+endstate;  
+
+state waitState;
+	code
+	
+	if ( IsWithin(playerMech, me, attackRange) or IsWithin(theConvoy, me, attackRange) ) then
+		startup(me);
+		trans sit;
+	endif;
+	
+	if IsShot(me) then
+		startup(me);
+		trans sit;
+	endif;
+
+endstate; 		
+
+state sit;
+	code
+		if FindEnemy(attackRange, FT_DEFAULT + FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+	   	orderMoveLookout;
+		
+endstate;
+
+state AttackState;
+	var
+	static ObjectID	nearFoe;
+
+	code
+		
+		nearFoe = GetNearestEnemy(me);
+		if isWithin(me, nearFoe, noJumpRange) or spotted then
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+			spotted = true;
+		else;
+			OrderAttackTactic(TACTIC_JUMP_AND_SHOOT, true);
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,168 @@
+//*********************************************************************************
+
+fsm H04_enemies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		
+		static LocPoint			leashPoint;
+		static integer		    leashRange;	
+
+		static integer			moveType;
+		static integer			speed;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;						// 1 - 10
+		leashRange				= 450;
+		pathEndReached 			= false;
+		moveType				= MOVE_NOCYCLE;
+		speed					= 200;
+		
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+
+		switch(memInt9)
+			case 1:
+				unitPath = NO_UNIT;
+				pathEndReached = true;
+				GetLocation(ena_Nav_Alpha, leashPoint);
+			endcase;
+			case 2:
+				unitPath = NO_UNIT;
+				pathEndReached = true;
+				GetLocation(ena_Nav_Gamma, leashPoint);
+			endcase;
+			case 3:
+				unitPath = epa_WanderPath01;
+				moveType = MOVE_CIRCLE;
+				speed = 40;
+			endcase;
+			case 4:
+				unitPath = epa_PatrolPath01;
+				speed = 80;
+			endcase;
+		endswitch;
+		
+
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	switch(memInt9)
+		case 1:
+			SetCombatLeash (me, leashPoint, leashRange);
+			trans sit;
+		endcase;
+		case 2:
+			SetCombatLeash (me, leashPoint, leashRange);
+			trans sit;
+		endcase;
+		case 3:
+			trans sit;
+		endcase;
+		case 4:
+			if isWithin(playerMech, ena_Nav_Beta, 100) or
+			   isWithin(playerMech, ena_beta2, 500) or
+			   isWithin(playerMech, me, 1100) then
+				trans sit;
+			endif;
+		endcase;
+	endswitch;
+	
+	
+endstate;		
+
+state sit;
+	code
+		if (not pathEndReached) then
+			if OrderMoveResumePatrol(unitPath, speed, moveType, true, true) then
+				pathEndReached = true;
+			endif;
+		else
+			OrderMoveLookout;
+		endif;
+		
+		if ( SetMyTarget(attackRange) ) then
+			trans AttackState;
+		endif;
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

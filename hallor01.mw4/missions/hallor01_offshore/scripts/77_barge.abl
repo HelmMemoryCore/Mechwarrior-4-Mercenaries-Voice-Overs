@@ -1,0 +1,74 @@
+//*********************************************************************************
+
+fsm Hall01_Barge : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	Integer		speed;						// speed at which the units travel
+		static	Boolean		PathEndReached;
+ 
+function Init;
+	code
+	
+		speed = 55;
+		unitPath = epa_BargePath01;
+		pathEndReached = false;
+		
+endfunction;
+
+state startState;
+	code
+	 
+	GroupAddObject(enemyGroup, me);		//The Barge must be killed on the first playthrough
+	AssignSkill(10);
+	trans sit;
+		
+endstate;
+
+state sit;
+
+	code
+	 if pathEndReached then
+		orderMoveLookOut;
+	else
+		if OrderMoveResumePatrol(unitPath, speed, MOVE_CIRCLE, true, false) then
+			pathEndReached = true;
+		endif;
+	endif;
+	
+	if isDead(me) then
+		trans deadState;
+	endif;
+	
+	
+endstate;
+
+state deadState;
+	code
+
+endstate;
+	
+
+endfsm.

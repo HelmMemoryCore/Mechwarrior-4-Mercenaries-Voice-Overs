@@ -1,0 +1,616 @@
+//*********************************************************************************
+
+fsm Exford01_JungleRecon : integer;
+
+//------------------------------------------------------------------
+//
+//	 Constant Definitions
+//
+//------------------------------------------------------------------
+	 const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi>  // <-- mektek
+//------------------------------------------------------------------
+//
+//	 Type Definitions
+//
+//------------------------------------------------------------------
+	 type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//	 Variable Declarations
+//
+//------------------------------------------------------------------
+	  var
+
+		eternal integer		playermech;			// This is the variable for the player's 'Mech
+			
+		// Standard Nav and Objective Variables
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+												//
+		static boolean		alpharevealed;		// Nav Alpha is shown
+		static boolean		betarevealed;		// Nav Beta is shown
+		static boolean		gammarevealed;		// Nav Gamma is shown
+		static boolean		deltarevealed;		// Nav Delta is shown
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+												//
+		eternal boolean		obj1;				// This indicates whether Objective 1 was completed
+		eternal boolean		obj2;				// This indicates whether Objective 2 was completed
+		eternal boolean		obj3;				// This indicates whether Objective 3 was completed
+		eternal boolean		obj4;				// This indicates whether Objective 4 was completed
+		eternal boolean		obj5;				// This indicates whether Objective 5 was completed
+												//
+		static boolean		obj1revealed;		// This indicates that Objective 1 has been revealed
+		static boolean		obj2revealed;		// This indicates that Objective 2 has been revealed
+		static boolean		obj3revealed;		// This indicates that Objective 3 has been revealed
+		static boolean		obj4revealed;		// This indicates that Objective 4 has been revealed
+		static boolean		obj5revealed;		// This indicates that Objective 5 has been revealed
+		//	
+		
+		static integer		cinema_cut;			// This variable keeps track of what scene a cinema is on.
+		static locpoint		temploc;			// Used for commands that need objects converted to locpoint format
+		static boolean		loser;				// You have lost the mission
+ 		eternal integer 	DavionRating;		// This is your Davion rating
+		eternal integer 	SteinerRating;		// This is your Steiner rating
+		eternal integer 	Nobility;			// This is your Nobility rating
+		eternal integer 	Infamy;				// This is your Infamy rating
+ 
+		// Trigger States
+		eternal boolean		FirstContact;		// Enemies have made the PC or allies
+		eternal boolean		Hill01Go;			// First wave of hilltop reinforcements go
+		eternal boolean		Hill02Go;			// Second wave of hilltop reinforcements go
+		eternal boolean		AllySouth;			// Once some allies get nuked, you get a few reinforcements
+		eternal boolean		TankGo;				// Hilltop tanks are on the move
+		static integer		TotalPrelim;		// The total of all 'Mechs before the "Final Conflict" 'Mechs
+		eternal boolean		OverlordFired;		// The Overlord has shot at a target
+		static integer		ObjCounter;			// How many objectives you've completed
+		eternal integer		RoE;				// Rules of Engagement - solo combat
+		eternal integer		ClanLeader;			// Who is the leader who challenges PCs to combat
+		eternal boolean		AirSweep;			// An air sweep is en route
+		eternal boolean		DuelOn;				// Invitation to a duel
+		
+//------------------------------------------------------------------
+//
+//	 Init Function	(automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+			playermech = getplayervehicle(epl_player0);
+			
+			if (GetLancemate(1)<>NO_UNIT) then
+				SetTargetDesirability(GetLancemate(1),70);
+			endif;
+
+			if (GetLancemate(2)<>NO_UNIT) then
+				SetTargetDesirability(GetLancemate(2),60);
+			endif;
+
+			if (GetLancemate(3)<>NO_UNIT) then
+				SetTargetDesirability(GetLancemate(3),50);
+			endif;
+
+			// 10 - First Set of Allies that storm the hill with player
+			/* GroupAddObject(GroupObjectID(10),eve_1lance01);
+			GroupAddObject(GroupObjectID(10),eve_1lance02);
+			GroupAddObject(GroupObjectID(10),eve_1lance03);
+			GroupAddObject(GroupObjectID(10),eve_2lance01);
+			GroupAddObject(GroupObjectID(10),eve_2lance02);
+			SetGroupAI(GroupObjectID(20),GROUPAI_MOODSQUAD); */
+			
+			// 20 - First Wave of 'Mechs (scouts)
+			GroupAddObject(GroupObjectID(20),eve_2wave01);
+			GroupAddObject(GroupObjectID(20),eve_2wave02);
+			GroupAddObject(GroupObjectID(20),eve_2wave03);
+			SetGroupAI(GroupObjectID(20),GROUPAI_MOODSQUAD);
+
+			// 21 - Nav Alpha 'Mechs
+			ClanLeader	= eve_Jeffer_Roshak;
+			GroupAddObject(GroupObjectID(21),ClanLeader);
+			GroupAddObject(GroupObjectID(21),eve_1wave02);
+			GroupAddObject(GroupObjectID(21),eve_1wave03);
+			GroupAddObject(GroupObjectID(21),eve_1wave04);
+			//SetGroupAI(GroupObjectID(21),GROUPAI_MOODSQUAD);
+			
+			// 22 - Lagoon 'Mechs at Gamma
+			//GroupAddObject(GroupObjectID(22),eve_3wave01);
+			GroupAddObject(GroupObjectID(22),eve_3wave02);
+			GroupAddObject(GroupObjectID(22),eve_3wave03);
+			GroupAddObject(GroupObjectID(22),eve_3wave04);
+			GroupAddObject(GroupObjectID(22),eve_3wave05);
+			SetGroupAI(GroupObjectID(22),GROUPAI_MOODSQUAD);
+			
+			// 30 - Don't shoot these guys
+			GroupAddObject(GroupObjectID(30),eve_1wave02);
+			GroupAddObject(GroupObjectID(30),eve_1wave03);
+			GroupAddObject(GroupObjectID(30),eve_1wave04);
+			
+			cinema_cut = 0;
+
+			// Culturals
+			//SetTarget(ede_example2,eve_example3);
+		
+endfunction;
+		#include_ <content\ABLScripts\Katie\katie_script.abi>  // <-- mektek
+//------------------------------------------------------------------
+//
+//	 Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+/* Mektek: Shark removed these and replaced them with Katie calls
+			SetKillSalvageChance(eve_1wave03,50);	// Vulture
+			SetKillSalvageChance(eve_1wave04,50);	// Shadowcat
+			SetKillSalvageChance(eve_2wave02,50);	// Cougar
+			SetKillSalvageChance(eve_3wave02,100);	// Ryoken
+*/
+		// These are your MetaMission variables, second part is how this mission effects your ratings
+			DavionRating 	= GetPreviousDavionFactionRating;
+			SteinerRating 	= GetPreviousSteinerFactionRating;
+			Nobility 		= GetPreviousNobility;
+			Infamy 			= GetPreviousInfamy;
+			
+			DavionRating	= DavionRating + 0;
+			SteinerRating	= SteinerRating - 0;
+			Nobility		= Nobility + 4;
+			Infamy			= Infamy + 0;
+		// 
+		
+		SetRadarNav(ena_Nav_Alpha,1);
+		SetRadarNav(ena_Nav_Beta,2);
+		SetRadarNav(ena_Nav_Gamma,3);
+		RevealNavpoint(ena_Nav_Alpha);
+		SetNavpoint(ena_Nav_Alpha);
+
+		// Vehicles on water - shutdown
+		SetSensorVisibility(eve_boat1,false);
+		SetSensorVisibility(eve_barge1,false);
+		SetSensorVisibility(eve_patrolboat1,false);
+		SetSensorVisibility(eve_patrolboat2,false);
+		SetSensorVisibility(eve_loader,false);
+		
+		SetTargetDesirability(ClanLeader,-1);
+
+		//setsensorvisibility(eve_example4,false);
+		StartMusic("Music\SkitterSprint",3.0,3.5,50);
+		
+		checkrange	= 150;		// How far from a nav point before the Betty voice says you've arrived.
+		
+		//trans won;
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+	
+endstate;
+	
+//------------------------------------------------------------------
+//
+//	 Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+
+	if IsMusicPlaying == false then
+		StartMusic("VO\Rain1",0.1,0.1,300);
+	endif;
+	
+// Sound Triggers
+
+	if (not GetGlobalTrigger(1)) then
+		if (IsWithin(PlayerMech,GroupObjectID(20),800)) then		// Once the Clanners get close they taunt
+			SetGlobalTrigger(1,true);
+			PlayVoiceOverOnce("vo\exford\mi1\PrepareforBattle",TALKER_CLA);
+			PlayVoiceOverOnce("vo\exford\mi1\EngagingClanMechs",TALKER_SPE);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(2)) then
+		//if (DuelOn) then		// You are about to be dueled by Jeffer Roshak
+		if (IsWithin(PlayerMech,eve_Jeffer_Roshak,500)) then
+			SetGlobalTrigger(2,true);
+			PlayVoiceOverOnce("vo\exford\mi1\ICrushYou",TALKER_ROS);
+			PlayVoiceOverOnce("vo\exford\mi1\ICrushYouRetort",TALKER_SPE);
+			PlayVoiceOverOnce("vo\exford\mi1\ToTheDeath",TALKER_ROS);
+			PlayVoiceOverOnce("vo\exford\mi1\LetsSeeAboutThat",TALKER_SPE);
+			StartMusic("Music\Rally",3.0,3.5,50);
+			SetGUITarget(PlayerMech,ClanLeader);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(3)) then
+		if (IsDead(ClanLeader)) then	// You killed their leader, you bastard!
+			SetGlobalTrigger(3,true);
+			PlayVoiceOverOnce("vo\exford\mi1\RoshakHistory",TALKER_SPE);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(4)) then
+		if (GroupAllDead(GroupObjectID(21))) then	// Second wave killed, check to make sure no one is around
+			if (not IsWithin(PlayerMech,GroupObjectID(20),1200)) then
+				if (not GetGlobalTrigger(6)) then
+					SetGlobalTrigger(4,true);
+					PlayVoiceOverOnce("vo\exford\mi1\ScopeClear",TALKER_SPE);
+				else
+					SetGlobalTrigger(4,true);
+				endif;
+			endif;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(5)) then
+		if (IsWithin(PlayerMech,ena_nav_beta,150)) then		// If you are close to nav beta
+			if (GetGlobalTrigger(4)) then
+				SetGlobalTrigger(5,true);
+				PlayVoiceOverOnce("vo\exford\mi1\NoSignatNav",TALKER_SPE);
+			endif;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(6)) then
+		if (Airsweep) then
+			if (IsWithin(eve_nightshade,ena_nav_gamma,1800)) then
+				SetGlobalTrigger(6,true);
+				PlayVoiceOverOnce("vo\exford\mi1\EnemyPosition",TALKER_SKY);
+				PlayVoiceOverOnce("vo\exford\mi1\WereOnIt",TALKER_SPE);
+				PlayVoiceOverOnce("vo\exford\mi1\EngagingClanForces",TALKER_SPE);
+				PlayVoiceOverOnce("vo\exford\mi1\UpdatingOperation",TALKER_CAS);
+				PlayVoiceOverOnce("vo\exford\mi1\WorkingOnIt",TALKER_SPE);
+			endif;
+		endif;
+	endif;
+
+// New Exford 01 Specific Triggers
+
+	if (RoE==0) then
+		if (IsWithin(PlayerMech,ClanLeader,850)) then	// if you are close to the leader - no one will fight you
+			StartMusic("music\Imminent_action",0.1,0.1,40);
+			StartTimer(3);		// This is the player timer
+			RoE = 1;
+		endif;
+	endif;
+	
+	if (RoE==1) then
+		if (GetLancemate(1)<>NO_UNIT) then		// Don't let your lancemates target jeffer
+			if (not IsDead(GetLancemate(1))) then
+				if (GetTarget(GetLancemate(1))==eve_Jeffer_Roshak) then
+					SetTarget(GetLancemate(1),NO_UNIT);
+				endif;
+			endif;
+		endif;
+
+		if (GetLancemate(2)<>NO_UNIT) then
+			if (not IsDead(GetLancemate(2))) then
+				if (GetTarget(GetLancemate(2))==eve_Jeffer_Roshak) then
+					SetTarget(GetLancemate(2),NO_UNIT);
+				endif;
+			endif;
+		endif;
+
+		if (GetLancemate(3)<>NO_UNIT) then
+			if (not IsDead(GetLancemate(3))) then
+				if (GetTarget(GetLancemate(3))==eve_Jeffer_Roshak) then
+					SetTarget(GetLancemate(3),NO_UNIT);
+				endif;
+			endif;
+		endif;
+
+		if (GetSecondaryLancemate(1)<>NO_UNIT) then
+			if (not IsDead(GetSecondaryLancemate(1))) then
+				if (GetTarget(GetSecondaryLancemate(1))==eve_Jeffer_Roshak) then
+					SetTarget(GetSecondaryLancemate(1),NO_UNIT);
+				endif;
+			endif;
+		endif;
+
+		if (GetSecondaryLancemate(2)<>NO_UNIT) then
+			if (not IsDead(GetSecondaryLancemate(2))) then
+				if (GetTarget(GetSecondaryLancemate(2))==eve_Jeffer_Roshak) then
+					SetTarget(GetSecondaryLancemate(2),NO_UNIT);
+				endif;
+			endif;
+		endif;
+
+		if (GetSecondaryLancemate(3)<>NO_UNIT) then
+			if (not IsDead(GetSecondaryLancemate(3))) then
+				if (GetTarget(GetSecondaryLancemate(3))==eve_Jeffer_Roshak) then
+					SetTarget(GetSecondaryLancemate(3),NO_UNIT);
+				endif;
+			endif;
+		endif;
+
+		if (GetSecondaryLancemate(4)<>NO_UNIT) then
+			if (not IsDead(GetSecondaryLancemate(4))) then
+				if (GetTarget(GetSecondaryLancemate(4))==eve_Jeffer_Roshak) then
+					SetTarget(GetSecondaryLancemate(4),NO_UNIT);
+				endif;
+			endif;
+		endif;
+		
+		if (timegreater(3,15)) then		// After 15 seconds you can't shoot other clanners
+			if (WhoShot(GroupObjectID(30))==PlayerMech) then
+				RoE = 2;
+			endif;
+		endif;
+	endif;
+	
+	if (RoE==1) then
+		if (IsDead(ClanLeader)) then
+			RoE = 2;
+		endif;
+	endif;
+
+// Obj 1 - Search the Waypoints
+
+	if (not Obj1) then
+		if (IsWithin(PlayerMech,ena_nav_gamma,300)) then
+			Obj1 = true;
+			SuccessObjective(eob_objective1);
+			if (obj2) then
+				StartTimer(2);		// You win!
+				PlayVoiceOverOnce("vo\exford\mi1\WereClear",TALKER_SPE);
+			endif;
+		endif;
+	endif;
+	
+// Obj2 - Destroy all 'Mechs
+
+	if (not Obj2) then
+		if (GroupAllDead(GroupObjectID(20))) and GroupAllDead(GroupObjectID(21)) and GroupAllDead(GroupObjectID(22)) then
+			Obj2 = true;
+			SuccessObjective(eob_objective2);
+			if (obj1) then
+				StartTimer(2);		// You win!
+				PlayVoiceOverOnce("vo\exford\mi1\WereClear",TALKER_SPE);
+			endif;
+		endif;
+	endif;
+
+// Victory and Loss conditions
+													   
+	if (timegreater(2,9)) then
+		  
+		// Salvage - FAB  7/30
+		//
+
+		SetCurrentInfamy(Infamy);
+		SetCurrentNobility(Nobility);
+		SetCurrentDavionFactionRating(DavionRating);
+		SetCurrentSteinerFactionrating(SteinerRating);
+		/////////////////////
+		// MISSION SALVAGE //
+		/////////////////////
+		Katie(eve_2wave01,50);
+		Katie(eve_2wave02,40);
+		Katie(eve_2wave03,30);
+
+		Katie(eve_Jeffer_Roshak,70);
+		Katie(eve_1wave02,60);
+		Katie(eve_1wave03,50);
+		Katie(eve_1wave04,40);
+
+		Katie(eve_3wave02,60);
+		Katie(eve_3wave03,50);
+		Katie(eve_3wave04,40);
+		Katie(eve_3wave05,30);
+		
+		if (loser) then
+			EndMission(false,5);
+			trans lost;
+		else
+			trans won;	
+		endif;
+		
+	endif;
+
+// Fail the mission when the player dies
+	if (isdead(playermech)) then
+		KillVoiceOvers;
+		switch rand(1,3)
+			case 1:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+			endcase;
+			case 2:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+			endcase;
+			case 3:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+			endcase;
+		endswitch;
+		StartMusic("Music\GenericLoss1",3.0,3.5,70);
+		endmission(false,14);
+		trans deadstate;
+	endif;
+
+// Betty speaks when reaching Nav Point
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not gammareached) then
+		if (isnavrevealed(ena_nav_gamma)) then
+			if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+				//SetNavpoint(ena_Nav_Delta);
+			endif;
+		endif;
+	endif;
+
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;	  
+
+	code
+
+		if (cinemaskip) then
+			KillVoiceOvers;	 
+			cinema_cut = 0;	 
+			KillTimer(gti_timer_21);
+			SetGlobalTrigger(0,true);
+			playerai(epl_player0,false);
+			StartTimer(1);		// This is the mission start timer
+			ResetTimer(1);
+			CinemaEnd;		  
+			SetCompositingEnabled(True);
+			revealobjective(eob_objective1);
+			RevealObjective(eob_objective2);
+			trans sit;
+		endif;
+		
+		switch (cinema_cut)
+
+			case 0:
+				CinemaStart;
+				
+				PlayVoiceOverOnce("vo\exford\mi1\Intro1",TALKER_SPE);
+				PlayVoiceOverOnce("vo\exford\mi1\Intro2",TALKER_CAS);
+				PlayVoiceOverOnce("vo\exford\mi1\ReadyReport",TALKER_SPE);
+				PlayLanceMateSound("vo\generic\readyop",3);
+				PlayVoiceOverOnce("vo\exford\mi1\ClanBrief",TALKER_SPE);
+				PlayVoiceOverOnce("vo\exford\mi1\PepTalk",TALKER_CAS);
+				if (PlayLanceMateSound("vo\generic\clanprejudice",1)) then
+					PlayVoiceOverOnce("vo\exford\mi1\SweetSalvage",TALKER_SPE);
+					PlayLanceMateSound("vo\generic\GoodNews",1);
+				endif;
+				SetActiveCamera(eca_CameraShip);
+				
+				SpinOverCamera(PlayerMech,PlayerMech,10.0,35.0,true);  // 10<-17
+				FadeToBlack(0.0);
+				FadeFromBlack(10.0);
+				
+				cinema_cut = cinema_cut + 1;
+				
+				starttimer(21);			// This is the cineractive counter.
+				resettimer(21);
+			endcase;
+
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					ResetTimer(21);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;
+			
+			case 2:
+				if (timegreater(21,2)) then
+					KillVoiceOvers;
+					cinema_cut = 0;
+					KillTimer(gti_timer_21);
+					SetGlobalTrigger(0,true);
+					playerai(epl_player0,false);
+					StartTimer(1);		// This is the mission start timer
+					ResetTimer(1);
+					CinemaEnd;
+					revealobjective(eob_objective1);	// Reveal the objectives
+					RevealObjective(eob_objective2);
+					SetCompositingEnabled(True);
+					
+					trans sit;
+				endif;
+			endcase;
+				
+		endswitch;
+	
+endstate;
+
+state won;	  
+
+	code
+		
+		if (cinemaskip) then
+			cinema_cut = 20;	
+			playerai(epl_player0,false);
+			KillVoiceOvers;
+			Endmission(true,1); 
+		endif;
+
+		switch cinema_cut
+		
+			case 0:	
+				StartMusic("Music\GenericVictory1",3.0,3.5,50);					 
+				PlayVoiceOverOnce("vo\exford\mi1\Close1",TALKER_SPE);
+				PlayVoiceOverOnce("vo\exford\mi1\Clsoe2",TALKER_CAS);
+				SetCompositingEnabled(False);
+				CinemaStart;
+				setactivecamera (eca_cameraship);
+				Targetfollowobject(playermech);
+				Camerafollowobject(playermech);
+				Targetoffset(0.0,4.0,0.0,0.0,false);
+				Cameraoffset(-30.0,125.0,75.0,0.0,false);
+				Cameraoffset(60.0,20.0,25.0,14.0,false);
+				playerai(epl_player0,true);
+				Cinema_cut=Cinema_cut+1;
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true,2);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;			
+			
+		endswitch;
+	
+endstate;
+
+state lost;
+
+		code
+		
+		switch cinema_cut
+		
+			case 0:	
+			
+			endcase;
+			
+			case 1:
+			
+			endcase;
+			
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************

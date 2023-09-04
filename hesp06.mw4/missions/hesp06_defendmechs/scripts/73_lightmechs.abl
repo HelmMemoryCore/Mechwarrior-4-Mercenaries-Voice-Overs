@@ -1,0 +1,154 @@
+//*********************************************************************************
+
+fsm Lightmechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+		static boolean			overrideMove;
+		static boolean			towerTrigger;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static integer			findTypes;
+		static integer			moveType;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 6;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		findTypes				= FT_DEFAULT + FT_BUILDING;
+		moveType				= MOVE_NOCYCLE;
+		overrideMove			= false;
+		towerTrigger			= false;
+		pathEndReached 			= false;
+		unitPath 				= epa_attackPath02;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	if startTheFun then
+		AssignSkill(skillLevel);
+		SetAutoTargeting(me, false);
+		trans sit;
+	endif; 	
+
+endstate;
+
+state sit;
+	code
+		
+		OrderMoveResumePatrol(unitPath, 200, moveType, true, overrideMove);
+		
+		if (not towerTrigger) then
+			if FindEnemy(attackRange, FindTypes) then
+				trans attackState;
+			endif;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if IsWithin(me, ena_Nav_Gamma, 300) and (not overrideMove) then
+			unitPath = epa_wanderPath02;
+			findTypes = FT_DEFAULT + FT_BUILDING;
+			overrideMove = true;
+			moveType = MOVE_CIRCLE;
+		endif;
+		
+		if isWithin(me, ena_trigger01, 150) then
+			setTarget(me, ebu_turretControl02);
+			towerTrigger = true;
+			trans attackState;
+		else
+			if isWithin(me, ena_trigger02, 150) then
+				setTarget(me, ebu_turretControl01);
+				trans attackState;
+			else		
+				if isWithin(me, ena_trigger03, 150) then
+					SetAutoTargeting(me, true);
+					towerTrigger = false;
+				endif;
+			endif;
+		endif;
+
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, overrideMove);
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if isWithin(me, ena_trigger01, 150) then
+			setTarget(me, ebu_turretControl02);
+			towerTrigger = true;
+		else
+			if isWithin(me, ena_trigger02, 150) then
+				setTarget(me, ebu_turretControl01);
+			else		
+				if isWithin(me, ena_trigger03, 150) then
+					SetAutoTargeting(me, true);
+					towerTrigger = false;
+				endif;
+			endif;
+		endif;
+		
+		if IsWithin(me, ena_Nav_Gamma, 300) and (not overrideMove) then
+			unitPath = epa_wanderPath02;
+			findTypes = FT_DEFAULT + FT_BUILDING;
+			overrideMove = true;
+			moveType = MOVE_CIRCLE;
+			trans sit;
+		endif;
+		
+
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

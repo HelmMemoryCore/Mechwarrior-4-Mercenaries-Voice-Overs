@@ -1,0 +1,171 @@
+//*********************************************************************************
+
+fsm planes : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+
+		static integer			delayTime;		// The timer used to for taxi delay	
+	
+		static ObjectID			destination;
+		static LocPoint			rallyPoint1;
+		static LocPoint			rallyPoint2;
+		static LocPoint			spawnPoint;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 7;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		pathEndReached 			= false;
+		
+		GetLocation(ena_planeNav01, rallyPoint1);
+		GetLocation(ena_planeNav02, rallyPoint2);
+		GetLocation(ena_planeSpawn, spawnPoint);
+		
+		Switch(memInt9)
+			case 1:
+				DelayTime = 0;
+			endcase;
+			case 2:
+				DelayTime = 4;
+			endcase;
+			case 3:
+				DelayTime = 8;
+			endcase;
+			case 4:
+				DelayTime = 12;
+			endcase;
+		endswitch;
+		
+		destination = eve_Arbold;
+		shutdown(me);
+		
+endfunction;
+
+function updateDestination;
+	var
+		static locpoint playerPos;
+		static integer x;
+		static integer z;
+		static integer distance1;
+		static integer distance2;
+		
+	code
+		
+		GetLocation(eve_Arbold, playerPos);
+		x = playerPos[0] - rallyPoint1[0];
+		z = playerPos[2] - rallyPoint1[2];
+		distance1 = (x*x) + (z*z);
+		x = playerPos[0] - rallyPoint2[0];
+		z = playerPos[2] - rallyPoint2[2];
+		distance2 = (x*x) + (z*z);
+		if distance1 > distance2 then
+			destination = ena_planeNav01;
+		else
+			destination = ena_planeNav02;
+		endif;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+		if launchPlanes then
+			AssignSkill(skillLevel);
+			resetTimer(10);
+			SetAutoTargeting(me, false);
+			SetTarget(me, eve_Arbold);
+			trans Launch;
+		endif;
+
+endstate;
+
+state Launch;
+	
+	code
+	
+		if TimeGreater(10, delayTime) then
+			teleport(me, spawnPoint);
+			startup(me);
+			orderTakeOff(1);
+			trans StrafeState;
+		endif;
+		
+endstate;	  
+
+state StrafeState;
+	code
+	
+		orderMoveToObject(destination, 600);
+		
+		if IsWithin(me, destination, 100) then
+			if destination == eve_Arbold then
+				updateDestination;
+			else
+				destination = eve_Arbold;
+			endif;
+		endif;
+		
+		OrderAttackTactic(TACTIC_PICK_BEST, false);
+		
+		if IsDead(me) then
+			trans deadState;
+		endif;
+		
+		if IsDead(eve_Arbold) then
+			trans leaveState;
+		endif;
+		
+endstate;  
+
+state leaveState;
+	code
+	
+		orderMoveToObject(ena_planeSpawn, 600);
+		
+		if IsWithin(me, ena_planeSpawn, 100) then
+			teleportToHell(me);
+		endif;
+			
+		if IsDead(me) then
+			trans deadState;
+		endif;
+	
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

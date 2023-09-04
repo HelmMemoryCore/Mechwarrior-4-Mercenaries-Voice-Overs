@@ -1,0 +1,132 @@
+//*********************************************************************************
+
+fsm Styk01_Friendlies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+		static boolean			pathEndReached;
+		static integer			memint9;
+
+		static ObjectID			unitPath;	// the path the units follow
+		static LocPoint			startPoint;		//starting point for Fleeing_raven
+		static LocPoint			LeashPoint;		
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 3;
+		pathEndReached 			= false;
+		memint9					= getMemoryInteger(me,9);
+		GetLocation(ena_ravenStart, startPoint);
+		GetLocation(ena_Nav_Alpha, leashPoint);
+
+
+endfunction;
+		
+state StartState;
+
+	code
+		switch (memint9)
+			case 1:
+				AssignSkill(10);
+				unitPath = epa_Retreat;
+				clearMoveOrder(me);
+				destroy(ebu_ravenDamage);		//Destroys a fuel tank to damage the Fleeing Raven.
+				destroy(eve_Watch_Dog_2);		//Destroy two mechs so their carcasses are on the field
+				destroy(eve_debris02);
+				OrderMoveResumePatrol(unitPath, 200, Move_NOCYCLE, true, false);
+				teleport(me, startPoint);
+				trans runAway;
+			endcase;
+			case 2:
+				AssignSkill(skillLevel);
+				unitPath = epa_HammerPath;
+				SetCombatLeash(me, leashPoint, attackRange/2);
+				trans sit;
+			endcase;
+		endswitch;
+		
+endstate;			
+
+state sit;
+	code
+	
+		OrderMoveResumePatrol(unitPath, 50, MOVE_CIRCLE, true, true);
+	
+		if FindEnemy(attackRange, FT_DEFAULT) then
+			trans attackState;
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+state runAway;
+
+	code
+		
+		destroy(eve_Watch_Dog_2);		//Make sure they're dead
+		destroy(eve_debris02);
+		
+		if ( OrderMoveResumePatrol(unitPath, 200, Move_NOCYCLE, true, false) ) then
+			clearMoveOrder( me );
+			shutdown ( me );
+			teleportToHell ( me );
+			trans deadState;
+		endif;
+		
+endstate;
+
+endfsm.
+

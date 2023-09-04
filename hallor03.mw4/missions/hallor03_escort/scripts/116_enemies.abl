@@ -1,0 +1,188 @@
+//*********************************************************************************
+
+fsm H03_enemies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+		static ObjectID			unitPath;		// the path the units follow
+
+		static boolean			timerStarted;
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 3;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		timerStarted			= false;
+		
+		switch(memInt9)
+			case 1:
+				unitPath = epa_AttackPath01;
+			endcase;
+			case 2:
+				unitPath = epa_AttackPath02;
+			endcase;
+			case 3:
+				unitPath = epa_AttackPath03;
+			endcase;
+		endswitch;
+		
+		pathEndReached = false;
+		shutDown(me);
+
+endfunction;
+		
+state StartState;
+
+	code
+		
+		AssignSkill(skillLevel);
+		switch GetMemoryInteger(me, 8)
+			case 1:
+				if difficulty < HARD_DIFFICULTY then
+					teleportToHell(me);
+					trans deadstate;
+				else
+					groupAddObject(groupObjectID(20), me);
+				endif;
+			endcase;
+			case 2:
+				if difficulty < IMPOSSIBLE_DIFFICULTY then
+					teleportToHell(me);
+					trans deadstate;
+				else
+					groupAddObject(groupObjectID(30), me);
+				endif;
+			endcase;
+		endswitch;
+        trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	switch(memInt9)
+		case 1:
+			if obj2 then
+				startup(me);
+				trans sit;
+			endif;
+			if isShot(me) then
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+		case 2:
+			if IsDead(eve_ambush) then
+				startup(me);
+				trans sit;
+			endif;
+			if (IsWithin(playerMech, GroupObjectID(20), 800)) then
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+		case 3:
+			if timerStarted then
+				if timeGreater(3, 80) then
+					startup(me);
+					trans sit;
+				endif;
+			else
+				if obj4 and GroupAllDead(GroupObjectID(10)) then
+					timerStarted = true;
+					resetTimer(3);
+				endif;
+			endif;
+			
+			if (IsWithin(playerMech, GroupObjectID(30), 800)) then
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+	endswitch;
+	
+endstate;		
+
+state sit;
+	code
+		if FindEnemy(attackRange, FT_DEFAULT + FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if (not pathEndReached) then
+			if OrderMoveTo(unitPath, 200, MOVE_NOCYCLE, true, true) then
+				pathEndReached = true;
+			endif;
+		else
+			OrderMoveLookout;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,32 @@
+
+fsm Factory : integer;		
+
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+function init;
+	code
+		SetupScoring_TeamDestruction;
+		TeamSetNav(1,ena_Nav_Center);
+		TeamSetNav(2,ena_Nav_Center);
+endfunction;
+
+state startState;
+
+	code
+		revealnavpoint(ena_Nav_Center);
+		revealnavpoint(ena_Team_1_Drop_Zone);
+		revealnavpoint(ena_Team_2_Drop_Zone);
+	
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+endfsm.

@@ -1,0 +1,183 @@
+//*********************************************************************************
+
+fsm Friendlies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static integer			memInt8;		// value of Memory Integer number 8
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+
+		static integer			speed;			//path speed
+		static integer			moveType;		
+		static boolean 			timeStarted;
+		static Integer			xoffset;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 4;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		memInt8 				= GetMemoryInteger(me, 8);	// Value of memory integer number 8
+		pathEndReached 			= false;
+		speed					= 200;
+		moveType				= MOVE_NOCYCLE;
+		timeStarted 			= false;
+		xoffset					= 0;
+				
+		switch (memint9)
+			case 1:
+				unitPath = epa_TankPath01;
+				moveType = MOVE_CIRCLE;
+			endcase;
+			case 2:
+				unitPath = epa_TankPath02;
+				moveType = MOVE_CIRCLE;
+			endcase;
+			case 5:
+				pathEndReached = true;
+				skillLevel = 5;
+			endcase;
+			case 6:
+				pathEndReached = true;
+				skillLevel = 7;
+				memint9 = 5;
+				xoffset	= -45;
+			endcase;
+		endswitch;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	trans waitState;
+
+endstate;
+
+state waitState;
+	
+	code
+	switch(memint9)
+		case 1:
+			trans sit;
+		endcase;
+		case 2:
+			trans sit;
+		endcase;
+		case 5:
+			shutdown(me);
+			trans TemplarState;
+		endcase;
+	endswitch;
+	
+endstate;
+
+state sit;
+	code
+		if ( SetMyTarget(attackRange) ) then
+			trans AttackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		switch(memint9)
+			case 1:
+				OrderMoveResumePatrol(unitPath, speed, moveType, true, true);
+			endcase;
+			case 2:
+				OrderMoveResumePatrol(unitPath, speed, moveType, true, true);
+			endcase;
+			case 5:
+				OrderMoveFollow(playermech,xoffset,-45);
+			endcase;
+			case 9:
+				trans waitState;
+			endcase;
+		endswitch;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			settarget(me, NO_UNIT);
+			orderStopAttacking;
+			clearMoveOrder(me);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state TemplarState;
+	
+	code
+		if obj1 and (not timeStarted) then
+			resetTimer(gti_timer_31);
+			timeStarted = true;
+		endif;
+		
+		if TimeGreater(gti_Timer_31, 160) then
+			startup(me);
+			templarsLive = true;
+			trans sit;
+		endif;
+		 
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

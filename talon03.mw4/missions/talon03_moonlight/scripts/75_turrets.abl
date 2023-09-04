@@ -1,0 +1,204 @@
+
+//*********************************************************************************
+
+// The below line MUST be changed in order for the script to be considered
+// a unique entity.  The word Turret must be changed to some other unique identifier
+fsm turrets : integer;
+
+// This is the generic script for turrets of all sorts.
+// Memory integer 9 is reserved for settings in case multiple turret groups are using the same brain
+
+// Behavior: The turret sits and shoots, and that's it.
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+    
+	static integer		attackrange; 		// At what range will I attack someone?
+	static integer		gunnery; 			// What is my chance to hit?
+	static real			mindelay;			// Minimum amount of time I will wait between shots
+	static real			maxdelay;			// Maximum amount of time I will wait between shots
+	static integer 		elitelevel; 		// How smart am I?
+												//Turrets do not use Elite Level to choose tactics.  However,
+											    // They do use Elite level to set up opportunity fire.
+	static integer		isshotradius;  	    //how close must an enemy shot come to me before I notice it
+	
+	static ObjectID     mytower; 			// Tower which controls this turret.
+												// -1 means I have no control tower
+	static boolean		visible;			// Whether I can be seen
+	static integer		SkillLevel;			// Skill level of turrets
+																																						
+//SETTINGS IN MEMORY CELLS
+//SP Turrets			=			0
+//ml Cannon				=			2
+//LRM Turrets			=			3
+
+//------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+function init;
+
+	code
+
+                    // defaults are below
+	attackrange     = 950;		//350
+	gunnery         = 70;		//30
+	mindelay        = 0.1;		//1.0
+	maxdelay        = 0.5;      //2.0
+	elitelevel      = 60;       //30
+	mytower         = -1;		//-1	(-1 means I have no control tower)
+	isshotradius    = 40;		//40
+	SkillLevel		= 4;
+	
+	SetSensorVisibility(ME,false);
+	Visible = False;
+	
+	//Use this to set different values for different units using the same brain
+	switch (GetMemoryInteger(me,9))
+
+		case 0:                 // Base Turret
+            mytower     = -1;
+        endcase;
+        
+	endswitch;
+
+endfunction;
+
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code
+		/*SetFiringDelay(me,mindelay,maxdelay);
+		setignorefriendlyfire(me,true);
+		setisshotradius(me,isshotradius);
+		setskilllevel(me,-1,gunnery,elitelevel);*/
+		AssignSkill(SkillLevel);
+		
+        SetSensorVisibility(me,false);
+        
+		trans look;
+
+endstate;
+
+state deadState;
+	code
+	  orderDie;
+endstate;
+
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state look;
+	var
+		ObjectID foe;
+
+	code
+	
+		OrderMoveLookout; 	
+		
+		if (not Visible) then
+			if (BlackOut) then
+				SetSensorVisibility(ME,true);
+				Visible = True;
+			endif;
+		endif;
+
+		//If I have a tower attached to me and that tower is destroyed
+		// then go to the towergone state when my tower is destroyed
+		if (mytower <> -1) then
+			if (IsDead(mytower)) then
+				SetSensorVisibility(me,false);
+                SetTargetDesirability(me,-1);
+                trans towergone;
+			endif;
+		endif;
+
+		//Find out if I should get into the attackstate
+		
+        if (setmytarget(attackrange)) then
+            trans attack;
+	 	endif;
+		
+endstate;
+
+//------------------------------------------------------------------
+//
+//     attack state : description
+//
+//------------------------------------------------------------------
+state attack;
+
+	code
+ 
+		if (not Visible) then
+			if (BlackOut) then
+				SetSensorVisibility(ME,true);
+				Visible = True;
+			endif;
+		endif;
+		
+		if (LeaveAttackState(attackrange)) then
+			orderstopattacking;
+			trans look;
+		endif;
+		
+		//Go ahead, shoot the target.  You know you want to.
+		orderAttack(TRUE);
+				
+		//If I have a tower attached to me and that tower is destroyed
+		// then go to the towergone state when my tower is destroyed
+		if (mytower <> -1) then
+			if (IsDead(mytower)) then
+				SetSensorVisibility(me,false);
+                SetTargetDesirability(me,-1);
+                trans towergone;
+			endif;
+		endif;
+
+endstate;
+
+state towergone;
+
+	code	
+
+		//My tower is dead so I should stop attacking things.
+		
+        OrderStopAttacking;
+        
+		//trans deadstate;	
+	
+endstate;
+
+
+endfsm.
+//******************************************************************
+

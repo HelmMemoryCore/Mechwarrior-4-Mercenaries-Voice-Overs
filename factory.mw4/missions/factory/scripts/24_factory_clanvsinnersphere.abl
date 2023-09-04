@@ -1,0 +1,77 @@
+fsm GhostHighway_Attrition : integer;		
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+		
+	var
+		static integer	chantTimer;			//Crowd chants this often
+
+function init;
+	code
+		SetupScoring_ClanVsInnerSphere;
+
+		TeamSetNav(1,ena_Nav_Center);
+		TeamSetNav(2,ena_Nav_Center);
+
+endfunction;
+
+function Chanting;
+	var
+
+	code
+
+		switch (rand(1,5))
+			case 1:
+				PlayTeamBettysound(9, FACTORY_BANG_WAV);
+			endcase;
+			case 2:
+				PlayTeamBettysound(9, FACTORY_BUZZ_WAV);
+			endcase;
+			case 3:
+				PlayTeamBettysound(9, FACTORY_CLANG_WAV);
+			endcase;
+			case 4:
+				PlayTeamBettysound(9, FACTORY_DRILL_WAV);
+			endcase;
+			case 5:
+				PlayTeamBettysound(9, FACTORY_STEAM_WAV);
+			endcase;
+		endswitch;
+		
+		return;
+endfunction;
+
+state startState;
+	code
+    	revealnavpoint(ena_Nav_Center);
+    	revealnavpoint(ena_Team_1_Drop_Zone);
+    	revealnavpoint(ena_Team_2_Drop_Zone);
+        
+		StartTimer(1);		// Chant Timer
+		ChantTimer = Rand(90,210);
+		
+		trans sitState;
+
+endstate;
+
+
+state sitState;
+	code
+		if (timegreater(1,ChantTimer)) then
+				Chanting;
+				ChantTimer = Rand(90,210);
+				ResetTimer(1);
+		endif;
+
+endstate;
+
+state deadState;
+	code
+
+endstate;
+	
+endfsm.
+

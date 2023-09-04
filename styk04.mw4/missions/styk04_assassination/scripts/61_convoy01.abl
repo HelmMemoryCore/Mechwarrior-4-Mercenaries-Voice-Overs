@@ -1,0 +1,142 @@
+//*********************************************************************************
+
+fsm Styk04_Convoy01 : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	Integer		attackRange;
+		static	Integer		withdrawRange;
+		static  integer		skillLevel;
+		
+		static  boolean		overRideMove;
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	Integer		speed;						// speed at which the Convoy travels
+		static	Integer		memInt9;					// Value of Memory Integer 9
+		static  boolean    	PathEndReached;
+
+function Init;
+	code
+		
+		attackRange = 500;
+		withdrawRange = attackRange * 3 / 2;
+		skillLevel = 4;
+		
+		overRideMove = false;
+		speed = 200;
+		unitPath = epa_ConvoyPath01;
+		pathEndReached = false;
+		memInt9 = getMemoryInteger(me,9);
+		
+		switch(memInt9)
+			case 1:
+				OverRideMove = false;
+			endcase;
+			case 2:
+				OverRideMove = true;
+			endcase;
+		endswitch;
+		
+endfunction;
+
+state startState;
+	code
+	
+	if startTheFun then
+		if isWithin(playerMech, Convoy01, 1000) then
+			AssignSkill(skillLevel);
+			OrderTakeOff(1);
+			trans sit;
+		endif;
+		
+		if isWithin(playerMech, ena_Nav_Alpha, 500) then
+			AssignSkill(skillLevel);
+			OrderTakeOff(1);
+			trans sit;
+		endif;
+	endif;
+	
+endstate;
+
+state sit;
+
+	code
+	
+	if pathEndReached then
+		orderMoveLookout;
+	else
+		if OrderMoveResumePatrol(unitPath, speed, MOVE_NOCYCLE, true, overRideMove) then
+			pathEndReached = true;
+			if (not obj1) then
+				convoy01Escaped = true;
+			endif;
+		endif;
+	endif;
+	
+	if ( isShot ( me ) ) then
+		setTarget(me, whoShot(me) );
+		SetAlignment(Convoy01, FA_ENEMY);
+		trans AttackState;
+	endif;
+	
+	if FindEnemy(attackrange, FT_DEFAULT) then
+		trans attackState;
+	endif;
+	
+	if isDead(me) then
+		trans deadState;
+	endif;
+	
+	
+endstate;
+
+state AttackState;
+
+	code
+		if( leaveAttackState(withdrawrange) or ExtroStarted) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, overRideMove);
+		endif;
+	
+		if isDead(me) then
+			trans deadState;
+		endif;
+		
+		if (not obj1) then
+			if IsWithin(me, ena_EnemyEscapeNav, 300) then
+				convoy01Escaped = true;
+			endif;
+		endif;
+		
+			
+endstate;
+
+state deadState;
+	code
+
+endstate;
+	
+endfsm.

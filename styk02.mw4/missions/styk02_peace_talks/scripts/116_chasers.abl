@@ -1,0 +1,118 @@
+//*********************************************************************************
+
+fsm Styk02_Chasers : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+		
+		static boolean			pathEndReached;
+		static ObjectID			unitPath;		// the path the units follow	
+		static integer			speed;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 4;
+
+		unitPath				= epa_Chase_Path;
+		pathEndReached			= false;
+		speed = 75;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	 
+	AssignSkill(skillLevel);   
+	trans waitforLaunch;
+		
+endstate;
+
+state WaitforLaunch;
+
+	code
+	
+	if LaunchHelis then
+		trans sit;
+	endif;
+
+endstate;			
+
+state sit;
+	code
+	
+		if pathendReached then
+			OrderMoveLookOut;
+		else
+			if OrderMoveResumePatrol(unitPath, speed, MOVE_NOCYCLE, true, true) then
+				pathEndReached = true;
+			endif;
+		endif;
+		
+		if FindEnemy(attackRange, FT_DEFAULT) then
+			trans AttackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+
+endfsm.

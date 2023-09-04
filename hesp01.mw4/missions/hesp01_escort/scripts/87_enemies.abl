@@ -1,0 +1,139 @@
+//*********************************************************************************
+
+fsm H01_enemies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+
+		static integer			speed;			// speed
+		static ObjectID			unitPath;		// the path the units follow
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		speed					= 200;
+
+		switch(memInt9)
+			case 0:
+				unitPath = epa_hoverPath;
+			endcase;
+		endswitch;
+		
+		pathEndReached = false;
+
+endfunction;
+		
+state StartState;
+
+	code
+		AssignSkill(skillLevel);
+		
+        trans WaitforLaunch; 	
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	switch(memInt9)
+		case 0:
+			if launchHovers then
+				trans sit;
+			endif;
+		endcase;
+	endswitch;
+	
+	if isShot(me) then
+		launchHovers = true;
+		trans sit;
+	endif;
+	
+	if IsWithin (me, playermech, 800) then
+		launchHovers = true;
+		trans sit;
+	endif;
+
+endstate;		
+
+state sit;
+	code
+		if FindEnemy(attackRange, FT_DEFAULT + FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if (not pathEndReached) then
+			if OrderMoveResumePatrol(unitPath, speed, MOVE_NOCYCLE, true, true) then
+				pathEndReached = true;
+			endif;
+		else
+			OrderMoveLookout;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,180 @@
+//*********************************************************************************
+
+fsm Friendlies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static LocPoint			leashPoint;
+
+		static integer			speed;			//path speed
+		
+		static boolean 			timerStarted;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 8;						// 1 - 10
+		pathEndReached 			= false;
+		timerStarted 			= false;
+		GetLocation(me, spawnPoint);
+				
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		
+		switch (memint9)
+			case 1:
+				unitPath = epa_friendlyPath01;
+				speed = 40;
+				GetLocation(ena_nav_alpha, leashPoint);
+			endcase;
+			case 2:
+				unitPath = epa_friendlyPath02;
+				speed = 200;
+			endcase;
+			case 3:
+				unitPath = epa_friendlyPath02;
+				speed = 200;
+			endcase;
+		endswitch;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	
+	switch (memint9)
+		case 1:												// Mechs near Alpha
+			AssignSkill(skillLevel);
+			SetCombatLeash(me, leashpoint, attackRange);
+			trans sit;
+		endcase;
+		case 2:												// Mechs near Gamma
+			if obj4Revealed then
+				if timerStarted then
+					if TimeGreater(11, 20) then 
+						trans sit;
+					endif;
+				else
+					AssignSkill(skillLevel);
+					resetTimer(11);
+					timerStarted = true;
+				endif;
+			endif;
+		endcase;
+		case 3:
+			skillLevel = skillLevel + 1;
+			memint9 = 2;
+		endcase;
+	endswitch;
+
+endstate;
+
+state sit;
+	code
+		
+		switch(memint9)
+			case 1:
+				OrderMoveResumePatrol(unitPath, speed, MOVE_CIRCLE, true, true);
+				if obj1 then
+					if (not IsWithin(playerMech, me, 1200)) then
+						shutdown(me);
+						teleportToHell(me);
+						trans HellState;
+					endif;
+				endif;
+			endcase;
+			case 2:
+				if pathEndReached then
+					//OrderMoveLookout;
+					OrderMoveToObject(playerMech, speed);
+				else
+					if OrderMoveResumePatrol(unitPath, speed, MOVE_NOCYCLE, true, true) then
+						pathendReached = true;
+					endif;
+				endif;
+			endcase;
+		endswitch;
+		
+		if ( SetMyTarget(attackRange) ) then
+			trans AttackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			settarget(me, NO_UNIT);
+			orderStopAttacking;
+			clearMoveOrder(me);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state hellState;
+	code
+	
+	if IsWithin(playermech, ena_Nav_Alpha, 1100) then
+		teleport(me, spawnpoint);
+		startup(me);
+		trans sit;
+	endif;
+		
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,146 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+
+fsm turrets : integer;
+
+
+//------------------------------------------------------------------
+
+// Generic_Turret:
+//   This shoots anything that comes near, but never moves.
+//   It can be used for turrets.
+
+//------------------------------------------------------------------
+
+
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+
+		static ObjectID			MyTower;		// My control tower: if destroyed, I stop firing
+		static integer			findTypes;		// What kind of enemies to look for
+
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= 1050;
+		skillLevel				= 2;
+
+		MyTower					= ebu_turretControl01;
+		findTypes				= FT_DEFAULT;
+
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+		AssignSkill(skillLevel);
+		trans waitstate; 	
+endstate;			
+
+//------------------------------------------------------------------
+//	WaitState: wait for someone to come near
+//------------------------------------------------------------------
+
+state WaitState;
+	code
+		if (FindEnemy(attackRange,findTypes)) then
+			trans AttackState;
+		endif;
+
+		if (MyTower <> NO_UNIT) then
+			if ( IsDead(MyTower) ) then
+				trans TowerGoneState;
+			endif;
+		endif;
+
+		OrderMoveLookOut;
+		
+		if isDead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+//------------------------------------------------------------------
+//	AttackState: let's see what's around, and destroy it
+//------------------------------------------------------------------
+
+state AttackState;
+	code
+		if (LeaveAttackState(withdrawRange)) then
+			OrderStopAttacking;
+			SetTarget(ME,NO_UNIT);
+			trans WaitState;
+		endif;
+
+		if (MyTower <> NO_UNIT) then
+			if ( IsDead(MyTower) ) then
+				trans TowerGoneState;
+			endif;
+		endif;
+
+		OrderAttackTactic(TACTIC_SHOOT_ONLY,true);
+		
+		if isDead(me) then
+			trans deadState;
+		endif;
+
+endstate;
+
+//------------------------------------------------------------------
+//	TowerGoneState: my control tower is destroyed; I can do nothing
+//------------------------------------------------------------------
+
+state TowerGoneState;
+	code
+		SetTarget(ME,NO_UNIT);
+		OrderStopAttacking;
+		ClearMoveOrder(ME);
+		SetTargetDesirability(ME,-1);
+		SetSensorVisibility(ME,FALSE);
+		trans deadstate;
+endstate;
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+
+endstate;
+
+endfsm.

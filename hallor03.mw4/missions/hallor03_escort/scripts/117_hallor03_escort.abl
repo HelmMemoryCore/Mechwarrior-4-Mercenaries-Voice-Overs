@@ -1,0 +1,653 @@
+
+//*********************************************************************************
+
+fsm HalloranV_03 : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi> // <---- my stuff
+
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+			
+		eternal integer playermech;
+		
+		eternal Boolean obj1;
+		eternal Boolean obj2;
+		eternal Boolean obj3;
+		eternal Boolean obj4;
+		eternal Boolean obj5;
+		eternal boolean stopConvoy;		//Used to stop the convoy, set in Ambush.abl
+		
+		eternal ObjectID	theConvoy;					
+		static  ObjectID	currentNavPoint;
+		static  Integer		currentNavNum;
+		static  Integer		checkRange;
+		
+		static boolean FirstAlphaVO;
+		static boolean SecondAlphaVO;
+		static boolean FirstBetaVO;
+		static boolean SecondBetaVO;
+		static boolean FirstGammaVO;
+		static boolean FirstBaseVO;
+		static boolean SecondBaseVO;
+		static boolean ThirdBaseVO;
+		static boolean FourthBaseVO;
+		
+		static boolean AlphaReached;
+		static boolean BetaReached;
+		static boolean GammaReached;
+		static boolean DeltaReached;
+		
+		static integer	cinema_cut;
+		
+		eternal Integer DavionRating;
+		eternal Integer SteinerRating;
+		eternal Integer Nobility;
+		eternal Integer Infamy;
+		
+		eternal boolean MFB_Used;
+		
+		eternal integer difficulty;
+		
+		
+ //------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	
+	code
+
+	playermech = getplayervehicle(epl_player0);	
+    GroupAddObject(GroupObjectId(1),playermech);
+
+    // The Convoy
+	GroupAddObject(GroupObjectId(5),eve_Convoy01);
+    GroupAddObject(GroupObjectId(5),eve_Convoy02);
+    GroupAddObject(GroupObjectId(5),eve_Convoy03);
+    SetGroupAI(groupobjectid(5),GROUPAI_RADIOSQUAD);
+	theConvoy = GroupObjectID(5);
+	
+    // Attackers From the West
+	GroupAddObject(GroupObjectId(10),eve_WestAttackers01);
+	GroupAddObject(GroupObjectId(10),eve_WestAttackers02);
+	GroupAddObject(GroupObjectId(10),eve_WestAttackers03);
+    SetGroupAI(groupobjectid(10),GROUPAI_RADIOSQUAD);
+ 		
+    // Attackers From the East
+	GroupAddObject(GroupObjectId(20),eve_EastAttackers01);
+	GroupAddObject(GroupObjectId(20),eve_EastAttackers02);
+	GroupAddObject(GroupObjectId(20),eve_EastAttackers03);
+	GroupAddObject(GroupObjectId(20),eve_EastAttackers04);
+    SetGroupAI(groupobjectid(20),GROUPAI_RADIOSQUAD);
+		
+    // Attackers From the South
+	GroupAddObject(GroupObjectId(30),eve_SouthAttackers01);
+	GroupAddObject(GroupObjectId(30),eve_SouthAttackers02);
+	GroupAddObject(GroupObjectId(30),eve_SouthAttackers03);
+    SetGroupAI(groupobjectid(30),GROUPAI_RADIOSQUAD);
+	
+	DavionRating = GetPreviousDavionFactionRating;
+	Davionrating = DavionRating - 2;
+	SteinerRating = GetPreviousSteinerFactionRating;
+	SteinerRating = SteinerRating + 7;
+	Nobility = GetPreviousNobility;
+	Nobility = nobility + 2;
+	Infamy = GetPreviousInfamy;
+	
+	cinema_cut = 0; 
+	
+	MFB_Used = GetEventFlag("MFB");
+	
+	difficulty = GetDifficulty;						
+		
+endfunction;
+
+
+	#include_ <content\ABLScripts\Katie\katie_script.abi>	// <---- my stuff
+
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code
+	
+	RevealObjective(eob_Objective01);
+	
+	RevealNavpoint(ena_Nav_Alpha);		
+	RevealNavpoint(ena_Nav_Beta);
+	RevealNavpoint(ena_Nav_Gamma);
+	RevealNavpoint(ena_Nav_Delta);
+	setRadarNav(ena_Nav_Alpha, 1);
+	setRadarNav(ena_Nav_Beta, 2);
+	setRadarNav(ena_Nav_Gamma, 3);
+	setRadarNav(ena_Nav_Delta, 4);
+	
+	SetNavPoint(ena_Nav_Alpha);
+	currentNavPoint = ena_Nav_Alpha;
+	currentNavNum = 1;
+	checkRange = 75;
+	
+	obj1 = false;			
+	obj2 = false;		 
+	obj3 = false;		  
+	obj4 = false;			
+	obj5 = false;
+				
+	stopConvoy = false;		//Set in ambush.abl, used in convoy.abl   	
+	
+	//Salvage Chance
+// Shark removed these and replaced them with Katie, search for MISSION SALVAGE
+//	SetKillSalvageChance(eve_WestAttackers02, 50);		//Chimera
+//	SetKillSalvageChance(eve_SouthAttackers02, 50);		//Chimera
+	
+	// Intro VO
+	PlayVoiceOverOnce("VO\Halloran\MI3\CheckItOut", talker_CON);
+	PlayVoiceOverOnce("VO\Halloran\MI3\ReadingAnything", talker_SPE);
+	PlayVoiceOverOnce("VO\Halloran\MI3\NoSatCom", talker_CAS);
+	PlayVoiceOverOnce("VO\Halloran\MI3\SnowBlind", talker_SPE);
+	PlayVoiceOverOnce("VO\Halloran\MI3\EnoughOfConvoy", talker_CAS);
+	PlayVoiceOverOnce("VO\Halloran\MI3\BetterPay", talker_SPE);
+	PlayVoiceOverOnce("VO\Halloran\MI3\HowMercenary", talker_CAS);
+	StartMusic("Music\Skittersprint",3.5,3.0,50);
+  
+	trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+	
+	//Music
+	if (not ismusicplaying) then
+		StartMusic("Music\arcticambloop",0.0,3.0,40);
+	endif;
+	
+	// VO
+	if (not firstAlphaVO) then
+		if stopConvoy then
+			PlayVoiceOverOnce("VO\Halloran\MI3\ColdStart", talker_SPE);
+			PlayLanceMateSound("vo\generic\VisContact",1);
+			PlayVoiceOverOnce("VO\Halloran\MI3\StatusReport", talker_CON);
+			PlayVoiceOverOnce("VO\Halloran\MI3\EngagingMechs", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\WeHoldHere", talker_CON);
+			PlayVoiceOverOnce("VO\Halloran\MI3\Negative", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\WeHold", talker_CON);
+			PlayVoiceOverOnce("VO\Halloran\MI3\Lousy", talker_Spe);
+			firstAlphaVO = true;
+		endif;
+	endif;
+	if (not SecondAlphaVO) then
+		if isDead(eve_Ambush) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\ResumeRoute", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\Rolling", talker_CON);
+			SecondAlphaVO = true;
+		endif;
+	endif;
+	if (not FirstBetaVO) then
+		if (IsWithin(playerMech, GroupObjectID(20), 800)) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\HighGearConvoy", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\WerentYouWatching", talker_CON);
+			PlayVoiceOverOnce("VO\Halloran\MI3\WereOnIt", talker_SPE);
+			FirstBetaVO = true;
+		endif;
+	endif;
+	if (not SecondBetaVO) then
+		if GroupAllDead(GroupObjectID(20)) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\TanksEliminated", talker_SPE);
+			SecondBetaVO = true;
+		endif;
+	endif;
+	if (not FirstGammaVO) then
+		if IsWithin(playermech, GroupObjectID(10), 750) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\BanditsDeadAhead", talker_CON);
+			PlayVoiceOverOnce("VO\Halloran\MI3\KeepMoving", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\RogerHurry", talker_CON);
+			firstGammaVO = true;
+		endif;
+	endif;
+	if (not FirstBaseVO) and GroupAllDead(GroupObjectID(10)) then
+		if TimeGreater(1, 5) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\RepairAtMFB", talker_CAS);
+			FirstBaseVO = true;
+			if (not MFB_Used) then
+				HelpMessage(eob_Helptext, 15);
+				resetTimer(21);
+				cinema_cut = 0;
+				trans MFBstate;
+			endif;
+			//PlayVoiceOverOnce("VO\Halloran\MI3\IncomingMechs", talker_sta);
+			//PlayVoiceOverOnce("VO\Halloran\MI3\CantImagineWhy", talker_SPE);
+			//PlayVoiceOverOnce("VO\Halloran\MI3\RogerTower", talker_SPE);
+			//PlayVoiceOverOnce("VO\Halloran\MI3\WeaponsOnLine", talker_DOS);
+			//PlayVoiceOverOnce("VO\Halloran\MI3\DrawThemIn", talker_SPE);
+			//PlayVoiceOverOnce("VO\Halloran\MI3\Acknowledged", talker_DOS);
+		endif;
+	endif;
+	if (not secondBaseVO) then
+		if GroupNumDead(groupObjectID(30)) > 1 then
+			PlayVoiceOverOnce("VO\Halloran\MI3\twoDown", talker_DOS);
+			secondBaseVO = true;
+		endif;
+	endif;
+	if (not ThirdBaseVO) and FourthBaseVO then
+		if (not IsWithin(playerMech, eve_Hrothgar, 1000) ) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\WhereYouGoing", talker_DOS);
+			ThirdBaseVO = true;
+		endif;
+	endif;
+	if (not FourthBaseVO) then
+		if FirstBaseVO and TimeGreater(3, 59) then
+			PlayVoiceOverOnce("VO\Halloran\MI3\IncomingMechs", talker_sta);
+			PlayVoiceOverOnce("VO\Halloran\MI3\Turrets", talker_sta);
+			PlayVoiceOverOnce("VO\Halloran\MI3\CantImagineWhy", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\RogerTower", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\WeaponsOnLine", talker_DOS);
+			PlayVoiceOverOnce("VO\Halloran\MI3\DrawThemIn", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI3\Acknowledged", talker_DOS);
+			FourthBaseVO = true;
+		endif;
+	endif;
+	
+	// Betty speaks when reaching Nav Point
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+			endif;
+		endif;
+	endif;
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+			endif;
+		endif;
+	endif;
+	if (not gammareached) then
+		if (isnavrevealed(ena_nav_gamma)) then
+			if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+			endif;
+		endif;
+	endif;
+	if (not Deltareached) then
+		if (isnavrevealed(ena_nav_Delta)) then
+			if (iswithin(playermech,ena_nav_delta,checkrange)) then
+				playvoiceover("VO\generic\navdelta",talker_Bet);
+				Deltareached = true;
+			endif;
+		endif;
+	endif;
+		
+	//VO end
+	
+	if ( isWithin (theConvoy, currentNavPoint, checkRange) and (not obj4) ) then
+		switch ( currentNavNum )
+			case 1:
+				PlayVoiceOverOnce("VO\Halloran\MI3\NavAlphaReached", talker_CON);
+				setnavpoint(ena_Nav_Beta);
+				currentNavPoint = ena_Nav_Beta;
+				obj1 = true;
+				successObjective(eob_Objective01);
+				RevealObjective(eob_Objective02);
+			endcase;
+			case 2:
+				PlayVoiceOverOnce("VO\Halloran\MI3\ConvoyAtBeta", talker_CON);
+				setnavpoint(ena_Nav_Gamma);
+				currentNavPoint = ena_Nav_Gamma;
+				obj2 = true;
+				successObjective(eob_Objective02);
+				RevealObjective(eob_Objective03);
+			endcase;
+			case 3:
+				PlayVoiceOverOnce("VO\Halloran\MI3\ConvoyAtGamma", talker_CON);
+				setnavpoint(ena_Nav_Delta);
+				currentNavPoint = ena_Nav_Delta;
+				obj3 = true;
+				successObjective(eob_Objective03);
+				RevealObjective(eob_Objective04);
+			endcase;
+			case 4:
+				PlayVoiceOverOnce("VO\Halloran\MI3\ConvoyAtDelta", talker_CON);
+				obj4 = true;
+				successObjective(eob_Objective04);
+				resetTimer(1);
+				PlayVoiceOverOnce("VO\Halloran\MI3\ConvoyAtStation", talker_SPE);
+				RevealObjective(eob_Objective05);
+			endcase;	
+		endswitch;
+		currentNavNum = currentNavNum + 1;
+	endif;
+	
+	if GroupAllDead(GroupObjectID(30)) and obj4 then
+		successObjective(eob_Objective05);
+		cinema_cut = 0;
+
+		/////////////////////
+		// MISSION SALVAGE //
+		/////////////////////
+
+		//west attackers
+		Katie(eve_WestAttackers01,60);
+		Katie(eve_WestAttackers02,50);
+		Katie(eve_WestAttackers03,40);
+	
+		//east attackers
+		Katie(eve_EastAttackers01,50);
+		Katie(eve_EastAttackers02,40);
+		Katie(eve_EastAttackers03,30);
+		Katie(eve_EastAttackers04,20);
+
+		//south attackers
+		Katie(eve_SouthAttackers01,50);
+		Katie(eve_SouthAttackers02,40);
+		Katie(eve_SouthAttackers03,30);		
+
+		resetTimer(21);
+		trans won;
+	endif;
+
+	// Fail mission if 1 convoy members are destroyed
+	if (GroupNumDead(theConvoy) > 0) or isDead(eve_hrothgar) then
+		failobjectiveall(9);
+		cinema_cut = 0;
+		resetTimer(21);
+		trans lostConvoy;
+	endif;
+		
+	
+	//Fail the mission when the player dies
+	if (isdead(playermech)) then
+		failobjectiveall(9);
+		cinema_cut = 0;
+		resetTimer(21);
+		trans lostPlayer;
+	endif;
+				
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;
+	code
+
+		if cinemaSkip then
+			CinemaEnd;
+			SetCompositingEnabled(true);
+			playerAI(playermech, false);
+			killVoiceOvers;
+			trans sit;
+		endif;
+	
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				StaticCamera(eve_Convoy01, ena_cameraPos01, 5.0, 20.0, false);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 20) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				playerAI(playermech, false);
+				CinemaEnd;
+				SetCompositingEnabled(true);
+				trans sit;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state MFBstate;
+	code
+
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				FadeToBlack(0.0);
+				Fadefromblack(5.0);
+				Targetfollowobject(eve_mfb);
+                Targetoffset(0.0, 12.0, 0.0, 0.0, false);       
+				camerafollowobject(eve_mfb);
+                Cameraoffset(-75.0, 10.0, 0.0, 0.0, false);       
+                Cameraoffset(0.0, 10.0, 75.0, 7.0, false);       
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 7) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				Cameraoffset(50.0, 10.0, 0.0, 7.0, false);
+				resetTimer(21);       
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				if TimeGreater(21, 7) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 4:
+				playerAI(playermech, false);
+				SetCompositingEnabled(true);
+				CinemaEnd;
+				trans sit;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state won;
+	code
+		
+		switch cinema_cut
+			case 0:
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericVictory1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericVictory2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				PlayVoiceOverOnce("VO\Halloran\MI3\LastOfThem", talker_SPE);
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 4) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:	
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				resetTimer(21);
+				FadeToBlack(0.0);
+				Fadefromblack(2.0);
+				Targetfollowobject(eve_hrothgar);
+                Targetoffset(0.0, 35.0, 0.0, 0.0, false);       
+				camerafollowobject(ena_cameraPos02);
+                Cameraoffset(0.0, 30.0, 0.0, 0.0, false);       
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				EndMission(true, 16);
+				PlayVoiceOverOnce("VO\Halloran\MI3\NiceWorkingWithYou", talker_SPE);
+				PlayVoiceOverOnce("VO\Halloran\MI3\AndYouComrade", talker_DOS);
+				PlayVoiceOverOnce("VO\Halloran\MI3\ClearedForLaunch", talker_STA);
+				PlayVoiceOverOnce("VO\Halloran\MI3\Dasvedanya", talker_DOS);
+								
+				SetCurrentInfamy(Infamy);
+				SetCurrentNobility(Nobility);
+				SetCurrentDavionFactionRating(DavionRating);
+				SetCurrentSteinerFactionrating(SteinerRating);
+				SetEventFlag("MFB", true);
+				
+				resetTimer(21);
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 4:
+				if TimeGreater(21, 4) then
+					obj5 = true;		//Hrothgar takes off.
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostConvoy;
+	var
+		static ObjectID DeadConvoy;
+	code
+		
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					if IsDead(eve_convoy01) then
+						DeadConvoy = eve_Convoy01;
+					else
+						if IsDead(eve_convoy02) then
+							DeadConvoy = eve_Convoy02;
+						else
+							if IsDead(eve_convoy03) then 
+								DeadConvoy = eve_Convoy03;
+							else
+								DeadConvoy = eve_hrothgar;
+							endif;
+						endif;
+					endif;
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(DeadConvoy, DeadConvoy, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostPlayer;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,3)
+					case 1:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:	
+				EndMission(false, 10);
+				//SetActiveCamera(eca_CameraShip);
+				//PullOutCamera(playermech, playermech, 250.0, 10.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************

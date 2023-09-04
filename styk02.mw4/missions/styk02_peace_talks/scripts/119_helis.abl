@@ -1,0 +1,107 @@
+//*********************************************************************************
+
+fsm Styk02_helis : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	Integer		speed;						// speed at which the limos travel
+		static	Integer		memInt9;
+ 
+function Init;
+	code
+	
+		speed = 55;
+		unitPath = epa_Retreat_Path;
+		memInt9 = getMemoryInteger(me,9);
+		
+endfunction;
+
+state startState;
+	code
+		if ( launchHelis ) then		// Player survived Obj1.  Helis take off now
+			ResetTimer(GTI_TIMER_10);
+			trans takeOff;
+		endif;
+		
+		if isDead(me) then
+			trans deadState;
+		endif;
+		
+		
+endstate;
+
+state takeOff;
+	code
+		switch ( memInt9 )
+			case 1:
+				if ( TimeGreater(GTI_TIMER_10, 0) ) then
+					orderTakeOff(50);
+					trans sit;
+				endif;
+			endcase;
+			case 2:
+				if ( TimeGreater(GTI_TIMER_10, 4) ) then
+					orderTakeOff(50);
+					trans sit;
+				endif;
+			endcase;
+			case 3:
+				if ( TimeGreater(GTI_TIMER_10, 8) ) then
+					orderTakeOff(50);
+					trans sit;
+				endif;
+			endcase;
+			case 4:
+				if ( TimeGreater(GTI_TIMER_10, 12) ) then
+					orderTakeOff(50);
+					trans sit;
+				endif;
+			endcase;
+		endswitch;
+		
+endstate;
+
+state sit;
+
+	code
+	
+	if ( OrderMovetoRigid(unitPath, speed, MOVE_NOCYCLE, true, false) ) then
+		clearMoveOrder ( me ) ;
+		trans deadstate;
+	endif;
+	
+	if isDead(me) then
+		trans deadState;
+	endif;
+	
+endstate;
+
+state deadState;
+	code
+
+endstate;
+	
+
+endfsm.

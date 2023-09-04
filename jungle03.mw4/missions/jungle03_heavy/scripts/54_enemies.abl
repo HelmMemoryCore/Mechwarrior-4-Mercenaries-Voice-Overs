@@ -1,0 +1,448 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+//
+//   REVISION HISTORY
+//
+//   9/6 Made it so skill level 8+ enemies will have a good chance
+//		of targetting someone besides the player
+//
+//	 9/13 Made it so that when the player shoots, you refresh coward
+//  	timer
+//
+//------------------------------------------------------------------
+
+fsm Militia : integer;
+
+
+//------------------------------------------------------------------
+// Moving AI:
+//   This script controls movers that do not go aggressive.
+//   MILITIA - This script controls the Steiner militia, the enemy of the PCs.
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		
+    // Standard Mech and Vehicle variables
+        static integer			attackRange;		// At what range do I start shooting?
+		static integer			withdrawRange;		// At what range do I withdraw from combat completely?
+                                                    //
+		static integer			SkillLevel;			// Used by Assign Skill for the difficulty of an enemy
+		static integer			piloting;			// Piloting skill
+		static integer			gunnery;			// Gunnery skill/chance to hit
+		static real				minDelay;			// Minimum amount of time I will wait between shots once a weapon is reloaded
+		static real				maxDelay;			// Maximum amount of time I will wait between shots once a weapon is reloaded
+		static integer 			eliteLevel;			// Elite level.  This helps determine tactics, defensive manuevers, opportunity fire
+													// and other things.  It indicates a general level of combat experience.
+		static integer			attackThrottle;		// My attack throttle
+		static integer			mytactic;			// Combat tactic I use - 0 means standard attack
+		static integer			findTypes;			// What kind of enemies to look for
+													//
+        static integer			path;	            // What path to take.
+		static integer			myobject;			// Where this unit will head to
+        static integer			speed;	            // Speed on the path.
+		static integer			MyGroup;			// Which MemoryInteger you work for
+		static integer			GroupNumber;		// What's my group -- i.e. I will use GroupObjectID(groupNumber) to identify my group
+		static integer			formationType;		// What kind of formation am I in?
+		static integer			formationDensity;	// How densely are we packed?
+		static integer			moveType;			// How I move along the path
+                                                    //
+ 		static integer			isShotRadius;		// How far away from me will I detect an enemy shot?
+                                                    //
+		static integer 			attackSound;		// The attack sound I play when I first attack
+		static integer 			deathSound;			// The sound I play when I die
+		                                            //
+		static integer			mood;				// My default 
+		static integer			takeOffDistance;	// My take-off distance if I'm an airplane (ignored if not an airplane)
+    //
+		
+	// Generic Special Unit Functions	
+		static boolean			ToHell;				// I am going to teleport to hell
+		static boolean			PowerDown;		   	// I start off shutdown
+		static boolean			Visible;			// Am I on radar
+		static boolean			RadarOff;			// This 'Mech doesn't use radar (no missile boats!)
+		static boolean			AmPlane;			// I am a plane unit
+		static boolean			SlowDown;			// I am slower than the average bear w/attack throttle (Light 'Mech)
+		static integer			MyTimer;			// When I show up timewise
+		static integer			MyPort;				// Where I teleport to
+		static locpoint			TempLoc;			// Used for teleport conversions
+	// 
+		
+		static boolean			TempAlliance;		// Temporary Solaris alliance
+		static integer			Alliance;			// Where are you in your alliance
+		
+function GetMySpawn : Integer;
+	var
+
+	code
+		switch (GetMemoryInteger(me,8))
+			case 1:
+				return (ena_1);
+			endcase;
+			case 2:
+				return (ena_2);
+			endcase;
+			case 3:
+				return (ena_3);
+			endcase;
+			case 4:
+				return (ena_4);
+			endcase;
+			case 5:
+				return (ena_5);
+			endcase;
+			case 6:
+				return (ena_6);
+			endcase;
+			case 7:
+				return (ena_7);
+			endcase;
+			case 8:
+				return (ena_8);
+			endcase;
+			case 9:
+				return (ena_9);
+			endcase;
+			case 10:
+				return (ena_10);
+			endcase;
+			case 11:
+				return (ena_11);
+			endcase;
+			case 12:
+				return (ena_12);
+			endcase;
+			case 13:
+				return (ena_13);
+			endcase;
+			case 14:
+				return (ena_14);
+			endcase;
+			case 15:
+				return (ena_15);
+			endcase;
+		endswitch;
+endfunction;
+
+function AllianceCheck;
+	var
+
+	code
+
+		if (TempAlliance) then
+			if (Alliance==0) then
+				if (timegreater(1,15)) then
+					SolAlliance(0);		// 0 is the invitation
+					SetAlignment(me,friendly);
+					SetTarget(me,NO_UNIT);
+					Alliance = 1;
+					StartTimer(10);		// This is the alliance timer
+					ResetTimer(10);
+					trans GoToPlayer;
+				endif;
+			endif;
+		endif;
+		
+		if (TempAlliance) then
+			if (Alliance==1) then
+				if (timegreater(10,9)) then
+					if WhoShot(me) == PlayerMech then
+						SolAlliance(1);		// 1 is the player betrayed the alliance
+						SetAlignment(me,enemy);
+						SetTarget(me,PlayerMech);
+						Alliance = 2;
+						ResetTimer(10);
+						trans GoToPlayer;
+					else
+						if (Combatants - NumberDead == 1) then
+							SolAlliance(2);		// 2 is allied until the end
+							SetAlignment(me,enemy);
+							SetTarget(me,PlayerMech);
+							Alliance = 2;
+							ResetTimer(10);
+							trans GoToPlayer;
+						endif;
+					endif;
+				endif;
+			endif;
+		endif;
+		
+endfunction;
+		
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+		// script-specific variables
+		attackRange		= 700;
+		withdrawRange	= AttackRange * 3 / 2;
+		path			= -1;
+		moveType		= move_circle;
+		speed			= 90;
+		formationType	= 1;
+		formationDensity= formtype_sparse;
+		findTypes		= FT_DEFAULT;
+
+		takeOffDistance	= 150;
+		Shutdown(me);
+
+		// driver settings
+		SkillLevel		= 5;
+		attackSound		= -1; // no sound
+		deathSound		= -1; // no sound
+		mood			= NEUTRAL_START;
+		
+		PowerDown		= True;
+		SkillLevel	= GetMemoryInteger(me,6);
+		MyPort		= GetMySpawn;
+
+        MyGroup			= GetMemoryInteger(me,9);
+		
+		switch (MyGroup)
+        
+            case 1:		// First Game
+				// Special Behavior Here
+			endcase;
+
+        endswitch;
+		
+		// Here is where it randomizes tactics
+		switch (rand(0,24))
+			case 1:
+				MyTactic		= TACTIC_REAR;
+			endcase;
+			case 2:
+				MyTactic		= TACTIC_RAM;
+			endcase;
+			case 3:
+				MyTactic		= TACTIC_RUSH;
+			endcase;
+			case 4:
+				MyTactic		= TACTIC_BACK_UP_AND_FIRE;
+			endcase;
+			case 5:
+				MyTactic		= TACTIC_SNIPE;
+			endcase;
+			case 6:
+				MyTactic		= TACTIC_FAST_CIRCLE;
+			endcase;
+		endswitch;
+
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+		
+		SetSearchLight(me,true);
+		AssignSkill(SkillLevel);
+		SetIgnoreFriendlyFire	(ME,false);		// This is Solaris people
+		
+		/* Use a Select Statement to change these for a particular unit
+		SetFiringDelay			(ME,minDelay,maxDelay);
+		SetIgnoreFriendlyFire	(ME,true);
+		SetIsShotRadius			(ME,isShotRadius);
+		SetEntropyMood			(ME,mood);
+		SetCurMood				(ME,mood);
+		SetSkillLevel			(ME,piloting,gunnery,eliteLevel);
+		SetAttackThrottle		(ME,attackThrottle);*/
+		
+		if (AmPlane) then
+			SetAttackThrottle	(ME,100);
+		else
+			if (SlowDown) then
+				SetAttackThrottle	(ME,AttackThrottle);
+			endif;
+		endif;
+		
+		if (PowerDown) then
+			Shutdown(me);
+		endif;
+
+		if (GetMemoryInteger(me,0)<>1) then		// Memory Integer 1 says whether not you are a named character
+			if (not (GetEventInteger("SolAlliance")==6)) then		// At 6 you've had plenty of temp alliances
+				if (not GetGlobalTrigger(22)) then
+					if (rand(0,100) < 7) then		// was 5, but now less pilots available
+						SetGlobalTrigger(22,true);
+						TempAlliance	= True;
+					endif;
+				endif;
+			endif;
+		endif;
+
+		if (MyGroup==RoundNumber) then
+			trans PreLobby;
+		else
+			SelfDestruct(ME);
+			trans DeadState;
+		endif;
+		
+endstate;			
+
+state PreLobby;
+	code
+
+		if (timegreater(10,1)) then
+			GetLocation(MyPort,TempLoc);
+			Teleport(me,TempLoc);
+			Startup(ME);
+			trans Lobby;        
+		endif;
+
+endstate;
+
+state Lobby;
+	code
+
+		if (timegreater(1,2)) then		// Wait for the end of the cinema
+			//SetTargetDesirability(me,60);
+			trans GoToPlayer;
+		endif;
+
+		/* if (MyGroup==4) then
+			if (timegreater(5,DelayTimer)) then
+				Startup(me);
+				trans GotoPlayer;
+			endif;
+		endif; */
+
+endstate;
+
+//------------------------------------------------------------------
+//	FollowPathState: follow our path, but keep an eye out for enemies
+//------------------------------------------------------------------
+
+state FollowPathState;
+	code
+
+		OrderMoveResumePatrol(path,speed,movetype,true,true);
+		//OrderFormationMove(GroupObjectID(GroupNumber),path,speed,movetype,formationtype,formationdensity,false);
+
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			trans Attack;
+		endif;
+
+endstate;
+
+state GoToLocation;
+	code
+
+		OrderMovetoObject(MyObject,speed);
+
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			trans Attack;
+		endif;
+		
+endstate;
+
+state GoToPlayer;
+	code
+
+		AllianceCheck;
+
+		OrderMovetoObject(PlayerMech,100);
+		
+		if (RadarOff) then
+			if (IsWithin(me,PlayerMech,200)) then
+				SetSensorVisibility(me,TRUE);
+				Visible = True;
+			else
+				SetSensorVisibility(me,FALSE);
+				Visible = False;
+			endif;
+		endif;
+		
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			trans Attack;
+		endif;
+
+endstate;
+
+state Attack;
+	code
+
+		AllianceCheck;
+		
+		if (LeaveAttackState(WithdrawRange)) then
+			trans GoToPlayer;
+		endif;
+		
+		if (MyTactic == 0) then
+			OrderAttack(true);
+		else
+			OrderAttackTactic(MyTactic,true);
+		endif;
+		
+		if (WhoShot(me) == PlayerMech) then
+			ResetTimer(19);
+			ResetTimer(20);
+		endif;
+
+		/* if (MyTactic == TACTIC_REAR) then		// If you are the last of Clan MacLeod then stop hitting the rear
+			if (GroupSize(GroupObjectID(GroupNumber)) == 1) then
+				MyTactic = 0;
+			endif;
+		endif; */
+		
+		if (RadarOff) then		// This is to mimic your radar being turned off
+			if (IsWithin(me,PlayerMech,200)) then
+				SetSensorVisibility(me,TRUE);
+				Visible = True;
+			else
+				SetSensorVisibility(me,FALSE);
+				Visible = False;
+			endif;
+		endif;
+		
+		if (SkillLevel > 6) then
+			if (GetTarget(me)==PlayerMech) then
+				if (Rand(0,100)<3) then
+					SetTarget(me,NO_UNIT);
+					trans GoToPlayer;
+				endif;
+			endif;
+		endif;
+			
+endstate;
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+		if (deathSound <> -1) then	
+			PlaySoundOnce(deathSound);
+		endif;		
+
+		orderDie;
+
+endstate;
+
+
+endfsm.

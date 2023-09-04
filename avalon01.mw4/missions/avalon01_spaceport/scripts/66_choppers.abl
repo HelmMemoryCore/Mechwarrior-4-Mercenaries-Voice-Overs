@@ -1,0 +1,151 @@
+//*********************************************************************************
+
+fsm Choppers : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static integer			memInt8;		// value of Memory Integer number 8
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static integer			speed;			//path speed
+		
+		static integer			waitTime;		//How long to wait before lift off
+		static integer			delayTimer;		// the timer used
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 1000;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 7;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		memInt8 				= GetMemoryInteger(me, 8);	// Value of memory integer number 8
+		waitTime				= memint8 * 5;				// Every 5 seconds a chopper lifts off
+		delayTimer				= GTI_TIMER_10;
+		pathEndReached 			= false;
+		speed					= 200;
+				
+endfunction;
+		
+state StartState;
+
+	code
+	
+	shutdown(me);
+	switch(memint9)
+		case 1:
+			if (obj1 and obj2) then
+                AssignSkill(skillLevel);
+				startTimer(delayTimer);
+				trans liftOff;
+			endif;
+		endcase;
+		case 2:
+			if betaReached or gammareached then
+                AssignSkill(skillLevel);
+				startTimer(delayTimer);
+				trans liftOff;
+			endif;
+		endcase;
+		case 3:
+			if obj4 then
+                AssignSkill(skillLevel);
+				startTimer(delayTimer);
+				trans liftOff;
+			endif;
+		endcase;
+	endswitch;
+	
+	if startTheFun then
+		SetAlignment(me, FA_ENEMY);
+	endif;
+
+endstate;
+
+state liftOff;
+	code
+	
+		if timeGreater(delayTimer, waitTime) then
+			startup(me);
+			ordertakeoff(1);
+			SetAlignment(me, FA_ENEMY);
+			trans sit;
+		endif;
+	
+endstate;
+
+state sit;
+	code
+		
+		orderMoveToObject(playermech, speed);
+		
+		if FindEnemy(attackRange, FT_DEFAULT+FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+				
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

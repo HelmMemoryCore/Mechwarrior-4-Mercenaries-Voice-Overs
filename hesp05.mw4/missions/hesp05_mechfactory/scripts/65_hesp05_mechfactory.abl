@@ -1,0 +1,721 @@
+
+//*********************************************************************************
+
+fsm Hesp05_MechFactory : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\Katie_consts.abi>  // <-- mektek
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+			
+		eternal integer playermech;
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+		
+		eternal boolean obj1;
+		eternal boolean obj2;
+		eternal boolean obj3;
+		eternal boolean obj4;
+		eternal boolean obj5;
+		eternal boolean obj6;
+		eternal boolean obj3Revealed;
+		eternal boolean obj4Revealed;
+		eternal boolean obj5Revealed;
+		eternal boolean obj3triggered;
+		eternal boolean obj5triggered;
+		eternal boolean techsLanded;
+		eternal boolean startTheFun;
+		
+		static Integer alphaGroup;
+		static Integer betaGroup;
+		static Integer obj6Group;
+		static Integer techs;
+		
+		static integer	cinema_cut;
+		
+		static boolean FirstAlphaVO;
+		static boolean SecondAlphaVO;
+		static boolean FirstBetaVO;
+		static boolean SecondBetaVO;
+		static boolean ThirdBetaVO;
+		static boolean FourthBetaVO;
+		static boolean ThirdAlphaVO;
+		
+		eternal Integer DavionRating;
+		eternal Integer SteinerRating;
+		eternal Integer Nobility;
+		eternal Integer Infamy;
+		
+		static 	integer Group1Size;
+		
+//------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+		
+		playermech = getplayervehicle(epl_player0);	
+		if (GetLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(1));
+		endif;
+		if (GetLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(2));
+		endif;
+		if (GetLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(1));
+		endif;
+		if (GetSecondaryLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(2));
+		endif;
+		if (GetSecondaryLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(4) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(4));
+		endif;
+		Group1Size = GroupSize(GroupObjectId(5));
+		
+        // Enemies at Alpha
+		alphaGroup = GroupObjectID(10);
+		GroupAddObject(alphaGroup,eve_OutPostMech01);
+		GroupAddObject(alphaGroup,eve_OutPostMech02);
+		GroupAddObject(alphaGroup,eve_OutPostMech03);
+		GroupAddObject(alphaGroup,eve_OutPostMech04);
+		GroupAddObject(alphaGroup,eve_tank01);
+		GroupAddObject(alphaGroup,eve_tank02);
+		GroupAddObject(alphaGroup,etu_turret08);
+		GroupAddObject(alphaGroup,etu_turret09);
+		GroupAddObject(alphaGroup,etu_turret10);
+        SetGroupAI(alphaGroup,GROUPAI_RADIOSQUAD);
+	
+		// Enemies at Beta
+		betaGroup = GroupObjectID(20);
+		GroupAddObject(betaGroup, eve_Fafnir01);
+		GroupAddObject(betaGroup, eve_Fafnir02);
+		GroupAddObject(betaGroup, etu_turret01);
+		GroupAddObject(betaGroup, etu_turret02);
+		GroupAddObject(betaGroup, etu_turret03);
+		GroupAddObject(betaGroup, etu_turret04);
+		GroupAddObject(betaGroup, etu_turret05);
+		GroupAddObject(betaGroup, etu_turret06);
+		GroupAddObject(betaGroup, etu_turret07);
+		GroupAddObject(betaGroup, eve_Tank03);
+		GroupAddObject(betaGroup, eve_Tank04);
+		GroupAddObject(betaGroup, eve_Tank05);
+		GroupAddObject(betaGroup, eve_Tank06);
+		GroupAddObject(betaGroup, eve_Tank07);
+        SetGroupAI(betaGroup,GROUPAI_RADIOSQUAD);
+		
+		// Patrol01
+		GroupAddObject(GroupObjectID(21), eve_patrolMech01);
+		GroupAddObject(GroupObjectID(21), eve_patrolMech02);
+		GroupAddObject(GroupObjectID(21), eve_patrolMech03);
+		GroupAddObject(GroupObjectID(21), eve_patrolMech04);
+        SetGroupAI(GroupObjectID(21),GROUPAI_RADIOSQUAD);
+		
+		// Patrol02
+		GroupAddObject(GroupObjectID(22), eve_patrolMech07);
+		GroupAddObject(GroupObjectID(22), eve_patrolMech05);
+		GroupAddObject(GroupObjectID(22), eve_patrolMech06);
+		GroupAddObject(GroupObjectID(22), eve_patrolMech08);
+        SetGroupAI(GroupObjectID(22),GROUPAI_RADIOSQUAD);
+		
+		//obj6 group	
+		obj6Group = GroupObjectID(23);
+		GroupAddObject(obj6Group, eve_patrolMech01);
+		GroupAddObject(obj6Group, eve_patrolMech02);
+		GroupAddObject(obj6Group, eve_patrolMech03);
+		GroupAddObject(obj6Group, eve_patrolMech04);
+		GroupAddObject(obj6Group, eve_patrolMech05);
+		GroupAddObject(obj6Group, eve_patrolMech06);
+		GroupAddObject(obj6Group, eve_patrolMech07);
+		GroupAddObject(obj6Group, eve_patrolMech08);
+        SetGroupAI(obj6Group,GROUPAI_NONE);
+		
+		// Choppers
+		GroupAddObject(GroupObjectID(25), eve_heli01);
+		GroupAddObject(GroupObjectID(25), eve_heli02);
+		GroupAddObject(GroupObjectID(25), eve_heli03);
+        SetGroupAI(GroupObjectID(25),GROUPAI_RADIOSQUAD);
+		
+		
+		obj1 = false;
+		obj2 = false;
+		obj3 = false;
+		obj4 = false;
+		obj5 = false;
+		obj6 = false;
+		obj3Revealed = false;
+		obj4Revealed = false;
+		obj5Revealed = false;
+		obj3triggered = false;	// set in friendlies.abl
+		obj5triggered = false;  // set in friendlies.abl
+		techs = eve_techs;
+		SetTargetDesirability(techs, 0);
+		techsLanded = false;	//Set in Friendlies.abl, used in mechs.abl
+		
+		cinema_cut = 0;
+		startTheFun = false; 						
+		
+		DavionRating = GetPreviousDavionFactionRating;
+		Davionrating = DavionRating + 15;
+		SteinerRating = GetPreviousSteinerFactionRating;
+		SteinerRating = SteinerRating - 15;
+		Nobility = GetPreviousNobility;
+		nobility = nobility;
+		Infamy = GetPreviousInfamy;
+		infamy = infamy;
+		
+endfunction;
+		#include_ <content\ABLScripts\Katie\Katie_script.abi>  // <-- mektek
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+		CheckRange = 150;
+		
+		RevealObjective(eob_Objective01);
+		RevealObjective(eob_Objective02);
+		
+		RevealNavpoint(ena_Nav_Alpha);		
+		RevealNavpoint(ena_Nav_Beta);
+		setRadarNav(ena_Nav_Alpha, 1);
+		setRadarNav(ena_Nav_Beta, 2);
+		setRadarNav(ena_Nav_Gamma, 3);
+		setRadarNav(ena_Nav_Delta, 4);
+		SetNavPoint(ena_Nav_Alpha);
+		
+		//Salvage Chance
+		/* MekTek: Shark removed these and replaced them with Katie calls
+		SetKillSalvageChance(eve_OutPostMech02, 50);		//thanatos
+		SetKillSalvageChance(eve_OutPostMech03, 50);		//thanatos
+		SetKillSalvageChance(eve_PatrolMech05, 50);		//LongBow
+		SetKillSalvageChance(eve_PatrolMech06, 50);		//LongBow
+		*/
+		
+		//Intro VO
+		PlayVoiceOverOnce("VO\Hesp\MI5\intro1", talker_SPE);
+		if (Group1Size > 0) then
+			PlayLanceMateSound("vo\generic\Amused2",1);
+			PlayVoiceOverOnce("VO\Hesp\MI5\Readyreport", talker_SPE);
+			PlayLanceMateSound("vo\generic\ReadyOp",7);
+		endif;
+		StartMusic("Music\NextMove",0.0,3.0,40);
+		
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+	//Music
+	if (not ismusicplaying) then
+		StartMusic("Music\arcticambloop",0.0,3.0,40);
+	endif;
+	
+	//vo
+	if (not firstAlphaVO) then
+		if isWithin(playerMech, alphaGroup, 900) then
+			PlayVoiceOverOnce("VO\Hesp\MI5\BeReady", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI5\HeavyLance", talker_CAS);
+			firstAlphaVO = true;
+		endif;
+	endif;
+   	if (not SecondAlphaVO) then
+		if obj1 then
+			PlayVoiceOverOnce("VO\Hesp\MI5\OutPostDestroyed", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI5\CommandosLiftingOff", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI5\WeSignalWhenClear", talker_SPE);
+			SecondAlphaVO = true;
+		endif;
+	endif;
+	if (not ThirdAlphaVO) then
+		if isWithin(playerMech, GroupObjectID(25), 900) then
+			if (not GroupAllDead(groupObjectID(5))) and (Group1Size > 0) then
+				PlayLanceMateSound("vo\generic\Choppers",1);
+			else
+				PlayVoiceOver("VO\Generic\EnemyAir", talker_Cas);
+			endif;
+			ThirdAlphaVO = true;
+		endif;
+	endif;
+	if (not firstBetaVO) then
+		if isWithin(playerMech, BetaGroup, 900) then
+			PlayVoiceOverOnce("VO\Hesp\MI5\CalliopesWatchOut", talker_SPE);
+			firstBetaVO = true;
+		endif;
+	endif;
+	if (not SecondBetaVO) then
+		if isWithin(playerMech, eve_Fafnir01, 900) then
+			PlayVoiceOverOnce("VO\Hesp\MI5\GonnaBeHardFight", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI5\HGRMurderous", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI5\IReadThat", talker_SPE);
+			StartMusic("Music\Behemoths",0.0,3.0,40);
+			SecondBetaVO = true;
+		endif;
+	endif;
+   	if (not ThirdBetaVO) then
+		if obj2 then
+			PlayVoiceOverOnce("VO\Hesp\MI5\BaseClear", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI5\TwoLancesApproaching", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI5\TwoGroupsOfHeavies", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI5\Frustration", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI5\ObjectiveBriefing", talker_SPE); //still plays if no lance because of info in line
+			PlayLanceMateSound("vo\generic\Roger",1);
+			RevealNavpoint(ena_Nav_Gamma);
+			SetNavPoint(ena_Nav_Gamma);
+			StartMusic("Music\FloodGate",0.0,3.0,40);
+			ThirdBetaVO = true;
+		endif;
+	endif;
+	if (not fourthBetaVO) then
+		if obj3 then
+			PlayVoiceOverOnce("VO\Hesp\MI5\30SecondsTillClear", talker_CAS);
+			fourthBetaVO = true;
+		endif;
+	endif;
+	//Vo end
+	 		
+	
+	
+		if (not obj1) then
+			if GroupAllDead(alphaGroup) then
+				successObjective(eob_objective01);
+				obj1 = true;
+				SetNavPoint(ena_Nav_Beta);
+			endif;
+		endif;
+			
+		if (not obj2) then
+			if GroupAllDead(betaGroup) then
+				successObjective(eob_objective02);
+				obj2 = true;
+			endif;
+		endif;
+		
+		if (not obj3Revealed) then
+			if obj2 then
+				RevealObjective(eob_Objective03);
+				obj3Revealed = true;
+			endif;
+		endif;
+		
+		if (not obj3) then
+			if obj3triggered then
+				successObjective(eob_objective03);
+				obj3 = true;
+			endif;
+			
+			if IsDead(ebu_Weapons_Integration_Lab) then
+				failObjective(eob_objective03);
+				resetTimer(21);
+				cinema_cut = 0;
+				trans lostTechs;
+			endif;
+			
+			if IsDead(techs) then
+				failObjective(eob_objective03);
+				resetTimer(21);
+				cinema_cut = 0;
+				trans lostTechs;
+			endif;
+		endif;
+			
+		if (not obj4Revealed) then
+			if obj3 then
+				RevealObjective(eob_Objective04);
+				obj4Revealed = true;
+				SetAlignment(ebu_Weapons_Integration_Lab, FA_ENEMY);
+			endif;
+		endif;
+
+		if (not obj5Revealed) then
+			if obj3 then
+				RevealObjective(eob_Objective05);
+				RevealObjective(eob_Objective06);
+				obj5Revealed = true;
+			endif;
+		endif;
+		
+		if (not obj4) and obj4Revealed then
+			if IsDead(ebu_Weapons_Integration_Lab) then
+				successObjective(eob_objective04);
+				RevealNavpoint(ena_Nav_Delta);
+				SetNavPoint(ena_Nav_Delta);
+				obj4 = true;
+			endif;
+		endif;
+
+		if (not obj5) and obj5Revealed then
+			if IsDead(techs) then
+				failobjectiveall(9);
+				resetTimer(21);
+				cinema_cut = 0;
+				trans lostTechs;
+			endif;
+			
+			if obj5triggered then			//Set in Techs.abl line 142
+				if IsWithin(playerMech, ena_Nav_Delta, 100) then
+					successObjective(eob_objective05);
+					//failObjective(eob_objective06);
+					hideObjective(eob_objective06);
+					obj5 = true;
+				endif;
+			endif;
+		endif;
+		
+		if (not obj6) and obj5Revealed then
+			if GroupAllDead(obj6Group) then
+				//successObjective(eob_objective05);
+				HideObjective(eob_objective05);
+				successObjective(eob_objective06);
+				obj5 = true;
+				obj6 = true;
+			endif;
+		endif;
+				
+		
+		if obj1 and obj2 and obj3 and obj4 and obj5 then	//Victory condition
+			resetTimer(21);
+			cinema_cut = 0;
+			trans won;
+		endif;
+		
+		if IsDead(techs) then
+			failobjectiveall(9);
+			resetTimer(21);
+			cinema_cut = 0;
+			trans lostTechs;
+		endif;
+
+//Fail the mission when the player dies
+	if (isdead(playermech)) then
+		failobjectiveall(9);
+		resetTimer(21);
+		cinema_cut = 0;
+		trans lost;
+	endif;
+
+// Betty speaks when reaching Nav Point
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not gammareached) then
+		if (isnavrevealed(ena_nav_gamma)) then
+			if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+	
+	if (not deltareached) then
+		if (isnavrevealed(ena_nav_delta)) then
+			if (iswithin(playermech,ena_nav_delta,checkrange)) then
+				playvoiceover("VO\generic\navdelta",talker_Bet);
+				deltareached = true;
+			endif;
+		endif;
+	endif;
+
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;
+	code
+
+		if cinemaSkip then
+			CinemaEnd;
+			SetCompositingEnabled(true);			
+			playerAI(playermech, false);
+			killVoiceOvers;
+			startTheFun = true;
+			trans sit;
+		endif;
+ 	
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				FadeToBlack(0.0);
+				Fadefromblack(2.0);
+				Targetfollowobject(ena_Nav_Alpha);
+				camerafollowobject(ena_Nav_Alpha);
+				targetoffset(0.0, 5.0, 0.0, 0.0, false);
+                Cameraoffset(160.0, 5.0, 0.0, 0.0, false);       
+                Cameraoffset(0.0, 5.0, -160.0, 8.0, false);       
+				resetTimer(21);
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 8) then			//Timer 21, standard cinema timer
+					Cameraoffset(-160.0, 5.0, 0.0, 8.0, false);       
+					resetTimer(21);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				if TimeGreater(21, 8) then			//Timer 21, standard cinema timer
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 3:
+				CinemaEnd;
+				SetCompositingEnabled(true);			
+				playerAI(playermech, false);
+				
+				startTheFun = true;
+				trans sit;
+			endcase;
+		endswitch;
+endstate;
+
+state won;
+	code
+		
+		switch cinema_cut
+			case 0:
+				if obj6 then
+					PlayVoiceOverOnce("VO\Hesp\MI5\close1", talker_SPE);
+				endif;
+				PlayVoiceOverOnce("VO\Hesp\MI5\close2", talker_CAS);
+				PlayVoiceOverOnce("VO\Hesp\MI5\close3", talker_SPE);
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericVictory1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericVictory2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut +1;
+			endcase;
+			
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+		
+			case 2:	
+				//EndMission(true, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(playermech, playermech, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+								
+				SetCurrentInfamy(Infamy);
+				SetCurrentNobility(Nobility);
+				SetCurrentDavionFactionRating(DavionRating);
+				SetCurrentSteinerFactionrating(SteinerRating);
+				
+				AddWeaponSalvage("HeavyGauss", 1);
+				AddWeaponSalvage("ERLargeLaser", 1);
+				
+				if obj6 then
+					AddMechInstanceSalvageCrippled("Fafnir");
+					
+					AddMechInstanceSalvage("Argus");
+					AddWeaponSalvage("UltraAC5", 2);
+					AddWeaponSalvage("MachineGun", 1);
+					AddWeaponSalvage("LRM10", 1);
+					AddWeaponSalvage("MediumLaser", 2);
+					
+					AddMechInstanceSalvage("Catapult");
+					AddWeaponSalvage("LRM20", 2);
+					AddWeaponSalvage("LargeLaser", 1);
+					AddWeaponSalvage("SmallLaser", 1);
+				endif;
+				
+				/////////////////////
+				// MISSION SALVAGE //
+				/////////////////////
+				Katie(eve_OutPostMech01,60);
+				Katie(eve_OutPostMech02,50);
+				Katie(eve_OutPostMech03,40);
+				Katie(eve_OutPostMech04,30);
+
+				Katie(eve_Fafnir01,30);
+				Katie(eve_Fafnir02,30);
+
+				Katie(eve_PatrolMech01,50);
+				Katie(eve_PatrolMech02,40);
+				Katie(eve_PatrolMech03,30);
+				Katie(eve_PatrolMech04,20);
+				Katie(eve_PatrolMech05,30);
+				Katie(eve_PatrolMech06,40);
+				Katie(eve_PatrolMech07,50);
+				Katie(eve_PatrolMech08,50);
+
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true, 3);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostTechs;
+	code
+		
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(techs, techs, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lost;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,3)
+					case 1:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:	
+				EndMission(false, 10);
+				//SetActiveCamera(eca_CameraShip);
+				//PullOutCamera(playermech, playermech, 250.0, 10.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+
+endfsm.
+//******************************************************************
+

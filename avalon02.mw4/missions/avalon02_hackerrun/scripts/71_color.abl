@@ -1,0 +1,104 @@
+//*********************************************************************************
+
+fsm Eaton02_Color : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	Integer		speed;						// speed at which the units travel
+		static	Integer		memInt9;
+		static 	boolean		PlayerMean;					// He's so famous, he's infamous
+ 		static 	Integer		attackRange;
+		static	Integer		withdrawRange;
+		static	Integer		isWithinRadius;
+
+function Init;
+	code
+	
+		speed = 55;
+
+		
+		speed = 50;
+		memint9 = 0;
+		attackRange = 600;
+		withdrawRange = attackRange * 3 / 2;
+		isWithinRadius = 2;
+		SetIsShotRadius(me, 30);
+		PlayerMean = false;
+		
+		// Default Infamy unit has no path and isn't visible on the radar
+		UnitPath = -1;
+		//SetSensorVisibility(me,false);
+		
+		switch (GetMemoryInteger(me,9))
+			case 1:
+				unitPath = epa_hackers;
+			endcase;
+			case 2:
+				unitPath = epa_escape;
+			endcase;
+			case 3:
+				//unitPath = epa_CarPath03;
+			endcase;
+		endswitch;
+		
+endfunction;
+
+state startState;
+	code
+		
+	trans sit;
+		
+endstate;
+
+state sit;
+
+	code
+	
+	if (UnitPath<>-1) then
+		OrderMoveResumePatrol(unitPath, speed, MOVE_CIRCLE, true, false);
+	endif;
+	
+	
+	if isDead(me) then
+		trans deadState;
+	endif;
+	
+	
+endstate;
+
+state deadState;
+	code
+
+	if (not PlayerMean) then
+		if WhoDestroyed(me) == playerMech then
+			infamy = infamy + 1;
+		endif;
+		PlayerMean = true;
+	endif;
+
+endstate;
+	
+
+endfsm.

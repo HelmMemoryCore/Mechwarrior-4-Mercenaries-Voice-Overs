@@ -1,0 +1,179 @@
+//*********************************************************************************
+
+fsm mechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static LocPoint			leashPoint;
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 7;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		pathEndReached 			= false;
+		GetLocation(me, spawnPoint);
+
+		switch(memInt9)
+			case 1:
+				unitPath = epa_Path01;
+			endcase;
+			case 2:
+				unitPath = epa_AltPath02;
+			endcase;
+			case 3:
+				unitPath = epa_Path03;
+			endcase;
+			case 4:
+				unitPath = epa_Path04;
+			endcase;
+			case 5:
+				unitPath = epa_Path04;
+				pathEndReached = true;
+			endcase;
+		endswitch;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	clearMoveOrder(me);
+	shutDown(me);
+	teleportToHell(me);
+	trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	switch(memInt9)
+		case 1:
+			teleport(me, spawnPoint);
+			startup(me);
+			trans sit;
+		endcase;
+		case 2:
+			if IsWithin(playerMech, ena_Nav_Beta, 500) and obj1 then
+				teleport(me, spawnPoint);
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+		case 3:
+			if IsWithin(theConvoy, ena_Nav_Alpha, 600) then
+				teleport(me, spawnPoint);
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+		case 4:
+			if obj2 then
+				teleport(me, spawnPoint);
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+		case 5:
+			if IsWithin(playerMech, ena_Nav_Beta, 950) and obj1 then
+				teleport(me, spawnPoint);
+				startup(me);
+				trans sit;
+			endif;
+		endcase;
+	endswitch;
+		
+endstate;		
+
+state sit;
+	code
+		if (not pathEndReached) then
+			if OrderMoveResumePatrol(unitPath, 200, MOVE_NOCYCLE, true, true) then
+				pathEndReached = true;
+			endif;
+		else
+			unitPath = epa_friendlyPath01;
+			if (memint9 <> 5) then
+				pathendReached = false;
+			else
+				OrderMoveLookout;
+			endif;
+		endif;
+		
+		if FindEnemy(attackRange, FT_DEFAULT + FT_BUILDING + FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,148 @@
+//*********************************************************************************
+
+fsm HalloranV01_Destroyers : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+		
+		static ObjectID			unitPath;		// the path the units follow	
+		static LocPoint			spawnPoint;
+		static integer			memint9;		//Memory integer 9
+		static Integer			launchTime;		//Time when unit launches
+		static boolean			pathEndReached;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		pathEndReached			= false;
+		skillLevel = 3;
+		memint9 = getMemoryInteger(me,9);
+		GetLocation(ena_DestroyerSpawn, spawnPoint);
+		unitPath = epa_DestroyerPath;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+		AssignSkill(skillLevel);
+		ClearMoveOrder(me);
+		shutdown(me);
+		SetSensorVisibility(me, false);
+		//resetTimer(25);		
+		trans waitForLaunch;
+		
+endstate;	   
+ 	
+state waitForLaunch;
+	
+	code
+	
+	//if timeGreater(25, 220) or GroupAllDead(GroupObjectID(25)) then
+	if (not launchPlanes) then
+		if GroupAllDead(GroupObjectID(25)) then
+			launchPlanes = true;				// Planes Launch when Destroyer shows up
+			StartMusic("Music\imminentaction",3.5,3.0,50);
+			resetTimer(25);		
+			//trans sit;
+		endif;
+	endif;
+	if timeGreater(25, 20) then
+		teleport(me, spawnPoint);
+		startup(me);
+		SetSensorVisibility(me, true);
+		trans sit;
+	endif;
+		
+endstate;
+
+state sit;
+	code
+	
+		if pathEndReached then
+			orderMoveLookOut;
+		else
+			if OrderMoveTo(unitPath, 40, MOVE_NOCYCLE, true, false) then
+				pathEndReached = true;
+			endif;
+		endif;
+	
+		if FindEnemy(attackRange, FT_DEFAULT+FT_BUILDING+FT_UNARMED) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+		
+		if IsWithin(me, ena_HidePoint, 500) then
+			ClearMoveOrder(me);
+			teleport(me, spawnPoint);
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, false);
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+		
+		if IsWithin(me, ena_HidePoint, 500) then
+			ClearMoveOrder(me);
+			teleport(me, spawnPoint);
+			trans sit;
+		endif;
+		
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+
+endfsm.

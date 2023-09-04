@@ -1,0 +1,201 @@
+
+//*********************************************************************************
+
+fsm Base_Attack : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+				  
+			static integer	attackRange;		// At what range do I start shooting?
+			static integer	withdrawRange;		// At what range do I stop attacking?
+			static integer	skillLevel;		// 1 - 10
+			static integer	memInt9;		// value of Memory Integer number 9
+			static integer	memInt8;		// value of Memory Integer number 8
+			static boolean	pathEndReached;
+			  
+			static ObjectID	unitPath;
+			static LocPoint	spawnPoint;			//the point units will teleport to from hell
+			static LocPoint	hidePoint;			
+			
+		
+//------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+
+	code
+	
+	attackrange 			= 800;
+	withdrawrange 			= attackrange * 3 / 2;
+	skillLevel 				= 3;
+	memint9					= GetMemoryInteger(me,9);
+	memint8					= GetMemoryInteger(me,8);
+	pathEndReached			= false;
+	
+	unitPath 				= NO_UNIT;
+	
+	switch (memint8)
+		case 1:
+			GetLocation(ena_HidePoint01, hidePoint);
+		endcase;
+		case 2:
+			GetLocation(ena_HidePoint02, hidePoint);
+		endcase;
+		case 3:
+			GetLocation(ena_HidePoint03, hidePoint);
+		endcase;
+		case 4:
+			GetLocation(ena_HidePoint04, hidePoint);
+		endcase;
+		case 5:
+			GetLocation(ena_HidePoint05, hidePoint);
+		endcase;
+		case 6:
+			GetLocation(ena_HidePoint06, hidePoint);
+		endcase;
+		case 7:
+			GetLocation(ena_HidePoint07, hidePoint);
+		endcase;
+		case 8:
+			GetLocation(ena_HidePoint08, hidePoint);
+		endcase;
+		case 9:
+			GetLocation(ena_HidePoint09, hidePoint);
+		endcase;
+		case 10:
+			GetLocation(ena_HidePoint10, hidePoint);
+		endcase;
+		case 11:
+			GetLocation(ena_HidePoint11, hidePoint);
+		endcase;
+		case 12:
+			GetLocation(ena_HidePoint12, hidePoint);
+		endcase;
+	endswitch;
+		
+endfunction;
+
+state startState;
+
+	code
+	
+	switch (memint9)
+		case 1:
+			unitPath = epa_MechPath;
+			getLocation(me, spawnPoint);
+			clearMoveOrder( me );
+			shutdown ( me );
+			teleportToHell ( me );
+		endcase;
+		case 2:
+			unitPath = epa_VehiclePath01;
+			getLocation(me, spawnPoint);
+			clearMoveOrder( me );
+			shutdown ( me );
+			teleport ( me, hidePoint );
+		endcase;
+		case 3:
+			unitPath = epa_VehiclePath02;
+			getLocation(me, spawnPoint);
+			clearMoveOrder( me );
+			shutdown ( me );
+			teleport ( me, hidePoint );
+		endcase;
+	endswitch;
+	
+	AssignSkill(skillLevel);
+	setSensorVisibility(me, false);
+	trans waitState;
+	
+endstate;
+
+state waitState;
+
+	code
+		
+		if (launchAttack) then
+			teleport ( me, spawnPoint);
+			startup ( me );
+			orderTakeOff (1);
+			setSensorVisibility(me, true);
+			trans sit;
+		endif;
+
+endstate;
+
+state sit;
+
+	code
+	
+		if pathEndReached then
+			orderMoveLookout;
+		else
+			if OrderMoveResumePatrol(unitPath, 200, MOVE_NOCYCLE, true, true) then
+				pathEndReached = true;
+			endif;
+		endif;
+
+		if FindEnemy(attackRange, FT_DEFAULT + FT_BUILDING + FT_UNARMED) then
+			trans attackState;
+		endif;
+
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if IsWithin(me, ena_hidePoint01, 300) then
+			clearMoveOrder(me);
+			shutdown(me);
+			trans waitState;
+		endif;
+
+endstate;
+
+state AttackState;
+
+	code
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+	
+endstate;
+
+state deadState;
+
+	code
+	
+endstate;
+
+endfsm.

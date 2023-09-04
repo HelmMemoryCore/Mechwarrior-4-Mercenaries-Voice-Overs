@@ -1,0 +1,64 @@
+//*********************************************************************************
+
+fsm Thark02_Haulers : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static objectID		unitPath;					// Path that the unit follows
+		static integer		speed;						// speed at which the Convoy travels
+		static integer		memint9;
+		static boolean		PathEndReached;
+		static Locpoint		spawnPoint;
+		
+function Init;
+	code
+endfunction;
+
+state startState;
+	code
+		
+		trans sit;
+		
+endstate;
+
+state sit;
+	code
+	
+		if (WhoDestroyed(me) == playerMech) then
+			infamy = infamy + 1;
+		endif;
+		
+		if isDead(me) then
+			trans deadState;
+		endif;
+	
+endstate;
+		
+
+state deadState;
+	code
+
+endstate;
+	
+endfsm.

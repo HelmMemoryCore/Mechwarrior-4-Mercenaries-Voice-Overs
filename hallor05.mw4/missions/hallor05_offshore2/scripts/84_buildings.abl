@@ -1,0 +1,79 @@
+
+//*********************************************************************************
+
+fsm buildings : integer;
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static  boolean		shotByPlayer; 
+
+//------------------------------------------------------------------
+//
+//     Local Functions
+//
+//------------------------------------------------------------------
+
+	function init;
+		code
+		
+			shotByPlayer = false;
+			SetIsShotRadius(me, 30);
+	
+	endfunction;
+
+	state startState;
+		code
+			trans sit;
+	endstate;
+	
+	state sit;
+		code
+		
+		//if WhoDestroyed(me) == playerMech then
+		//	infamy = infamy + 2;
+		//endif;
+		
+		if isdead(me) then
+			trans DeadState;
+		endif;
+				
+	endstate;
+	
+	state deadState;
+		code
+		
+		if (not shotByPlayer) then
+			if WhoDestroyed(me) == playerMech then
+				infamy = infamy + 2;
+			endif;
+			shotByPlayer = true;
+		endif;
+	
+	endstate;
+
+
+endfsm.
+//******************************************************************
+

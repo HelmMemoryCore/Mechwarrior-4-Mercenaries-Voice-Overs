@@ -1,0 +1,77 @@
+fsm CentralPark_TeamAbsoluteAttrition : integer;		
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+
+	var
+		static boolean				CrowdRests;		// The crowd won't cheer all thee time
+		static integer				ChantTimer;		// Get over this time and the crowd is ready to chant
+
+function init;
+	code
+		SetupScoring_TeamAbsoluteAttrition;
+		TeamSetNav(1,ena_Nav_Center);
+		TeamSetNav(2,ena_Nav_Center);
+endfunction;
+
+function Chanting;
+	var
+
+	code
+
+		switch (rand(1,2))
+			case 1:
+				PlayTeamBettySound(1, COLISEUM_CHANT1_WAV);
+				PlayTeamBettySound(2, COLISEUM_CHANT1_WAV);
+			endcase;
+			case 2:
+				PlayTeamBettySound(1, COLISEUM_CHANT3_WAV);
+				PlayTeamBettySound(2, COLISEUM_CHANT3_WAV);
+			endcase;
+		endswitch;
+		
+		return;
+endfunction;
+
+state startState;
+	code
+		revealnavpoint(ena_Nav_Center);
+		revealnavpoint(ena_Team_1_Drop_Zone);
+		revealnavpoint(ena_Team_2_Drop_Zone);
+
+		StartTimer(1);		// Chant Timer
+		ChantTimer = Rand(90,210);
+
+        // not needed because the COLISEUMAMB_MUSIC is specially triggered by the C++ code at load time
+        //StartMusicAll(COLISEUMAMB_MUSIC);
+ 
+		trans sit;
+			
+endstate;
+	
+state sit;
+	code
+
+		if (timegreater(1,ChantTimer)) then
+				Chanting;
+				ChantTimer = Rand(90,210);
+				ResetTimer(1);
+		endif;
+
+        // not needed because the coliseum music is specially set to loop
+		//if IsMusicPlaying == false then
+        //    StartMusicAll(COLISEUMAMB_MUSIC);
+		//endif;
+
+endstate;
+
+state deadState;
+	code
+
+endstate;
+	
+endfsm.
+

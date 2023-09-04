@@ -1,0 +1,86 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+//------------------------------------------------------------------
+
+fsm Bomb : integer;
+
+
+//------------------------------------------------------------------
+// Moving AI:
+//   This script controls movers that do not go aggressive.
+//   MILITIA - This script controls the Steiner militia, the enemy of the PCs.
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		static boolean		Visible;		// Can I be seen
+		
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+	
+		Visible = False;
+	
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+		
+		if (IsWithin(me,GroupObjectID(1),25)) then
+			Destroy(me);
+			MineField = True;
+			trans DeadState;        
+		endif;
+
+		if (IsWithin(me,PlayerMech,25)) then
+			Destroy(me);
+			MineField = True;
+			trans DeadState;        
+		endif;
+		
+		if (not Visible) then
+			if (MineField) then
+				if (IsWithin(me,PlayerMech,55)) then
+					SetSensorVisibility(me,true);
+					Visible = True;
+				endif;
+			endif;
+		endif;
+
+endstate;			
+
+state DeadState;
+	code
+
+		orderDie;
+
+endstate;
+
+endfsm.

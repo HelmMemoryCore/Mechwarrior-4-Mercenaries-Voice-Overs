@@ -1,0 +1,174 @@
+//*********************************************************************************
+
+fsm mechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+		static boolean			overrideMove;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static integer			WaveDelay;
+		static integer			WaitTime;
+		static integer			findTypes;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 6;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		findTypes				= FT_DEFAULT + FT_BUILDING;
+		overrideMove			= true;
+		pathEndReached 			= false;
+		unitPath 				= NO_UNIT;
+		WaveDelay				= 120;						// 2 minutes in between waves
+		GetLocation (me, spawnPoint);
+		
+
+		switch (memint9)
+			case 1:
+				waitTime = WaveDelay * 0;
+				unitPath = epa_attackPath01;
+			endcase;
+			case 2:
+				// None
+			endcase;
+			case 3:
+				waitTime = WaveDelay * 1;
+				unitPath = epa_attackPath03;
+				shutDown(me);
+				teleportToHell(me);
+			endcase;
+			case 4:
+				waitTime = WaveDelay * 5/4;
+				unitPath = epa_attackPath04;
+				shutDown(me);
+				teleportToHell(me);
+			endcase;
+		endswitch;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	if (memint9 == 5) then		//Parkinglot mechs
+		shutdown(me);
+		trans deadstate;
+	else
+		if startTheFun then
+			AssignSkill(skillLevel);
+			resetTimer(delayTimer);
+			trans WaitforLaunch;
+		endif;
+	endif; 	
+
+endstate;
+
+state WaitforLaunch;
+	code
+	
+		if TimeGreater(delaytimer, waitTime) then
+			teleport(me, spawnPoint);
+			startup(me);
+			trans sit;
+		endif;
+		
+		if groupAllDead(wave1Group) and groupAllDead(wave2Group) then
+			switch memint9
+				case 3:
+					waitTime = 0;
+				endcase;
+				case 4:
+					waitTime = GetTimer(delayTimer) + 30;
+					memint9 = 6;	//Prevents this from running more than once
+				endcase;
+			endswitch;
+		endif;
+			
+	
+endstate;		
+
+state sit;
+	code
+		
+		if pathEndReached or (unitPath == NO_UNIT) then
+			OrderMoveLookout;
+		else
+			if OrderMoveResumePatrol(unitPath, 200, MOVE_NOCYCLE, true, overrideMove) then
+				pathEndReached = true;
+			endif;
+		endif;
+		
+		if FindEnemy(attackRange, FindTypes) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, overrideMove);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

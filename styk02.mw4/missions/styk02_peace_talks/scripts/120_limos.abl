@@ -1,0 +1,172 @@
+//*********************************************************************************
+
+fsm Styk02_Limos : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	ObjectID	target01;					// Chimera
+		static	ObjectID	target02;					// Chimera
+		static	Integer		memint9;					// used to hold memory Integer 9
+		static	Integer		speed;						// speed at which the limos travel
+		static 	Integer		attackRange;
+		static	Integer		withdrawRange;
+		static  integer		skillLevel;
+		static	Integer		isWithinRadius;
+ 
+ function Init;
+	code
+	
+		speed = 50;
+		target01 = eve_Commonality_Police_Force;
+		target02 = eve_Local_Police_Force;
+		attackRange = 600;
+		withdrawRange = attackRange * 3 / 2;
+		isWithinRadius = 2;
+		skillLevel = 4;
+		
+		memint9 = getMemoryInteger(me,9);
+		switch (memint9)
+		
+			case 0:
+				unitPath = epa_Escort_Path;
+			endcase;
+			
+			case 1:
+				unitPath = epa_Limo1_path;
+			endcase;
+		
+			case 2:
+				unitPath = epa_Limo2_path;
+			endcase;
+		endswitch;
+	
+		setIsShotRadius(me, isWithinRadius);
+				
+endfunction;
+
+state startState;
+	code
+	trans sit;
+endstate;
+
+state sit;
+
+	code
+	
+	if ( OrderMoveToRigid(unitPath, speed, MOVE_NOCYCLE, true, false) ) then
+		switch ( memint9 )
+		
+			case 0:
+				launchAttackers = true;
+			endcase;
+			
+			case 1:
+				limo1Arrived = true;
+			endcase;
+			
+			case 2:
+				limo2Arrived = true;
+			endcase;
+		endswitch;
+	endif;
+	
+	if ( limo1Arrived and limo2Arrived ) then
+		resetTimer(gti_timer_31);
+		trans explodeState;
+	endif;
+	
+endstate;
+
+state explodeState;
+	code
+	
+		if ( timeGreater(gti_timer_31, 3) ) then
+			obj1Revealed = true;
+    		destroy ( target01 );		
+			destroy ( target02 );
+			switch ( memint9 )
+				case 0:
+					setAlignment(me, FA_ENEMY);
+					assignSkill(skillLevel);
+					trans searchState;
+				endcase;
+				case 1:
+					ClearMoveOrder(me);
+					destroy (me);
+					//teleportToHell(me);
+					trans deadstate;
+				endcase;
+				case 2:
+					ClearMoveOrder(me);
+					destroy (me);
+					//teleportToHell(me);
+					trans deadstate;
+				endcase;
+			endswitch; 
+		endif;
+ 
+endstate;   
+
+state attackState;
+	code
+		if( leaveAttackState(withdrawRange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans searchState;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+		
+endstate;
+
+state searchState;
+	code
+		
+		if ( timeGreater(gti_timer_31, 5) ) then
+			if FindEnemy(attackRange, FT_DEFAULT) then
+				trans AttackState;
+			endif;
+			
+			if ( isShot ( me ) ) then
+				setTarget(me, whoShot(me) );
+				trans attackState;
+			endif;
+			
+			if ( isDead(me)) then
+				trans deadstate;
+			endif;
+		endif;
+		
+endstate;
+
+state DeadState;
+	code
+endstate;
+
+endfsm.

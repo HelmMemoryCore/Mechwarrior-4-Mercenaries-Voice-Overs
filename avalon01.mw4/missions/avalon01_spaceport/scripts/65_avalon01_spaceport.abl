@@ -1,0 +1,734 @@
+
+//*********************************************************************************
+
+fsm Avalon01_SpacePort : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi>	// <-- mektek
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+			
+		eternal integer playermech;
+		
+		eternal boolean obj1;
+		eternal boolean obj2;
+		eternal boolean obj3;
+		eternal boolean obj4;
+		eternal boolean obj4Revealed;
+		eternal boolean obj5;
+		eternal boolean obj6;
+		
+		eternal boolean alphaReached;
+		eternal boolean BetaReached;
+		eternal boolean GammaReached;
+		eternal boolean DeltaReached;
+		
+		eternal integer fuelTanks;
+		eternal integer comBuildings;
+		eternal integer obj4Group;
+		eternal integer obj5Group;
+		
+		eternal integer currentNavPoint;
+		eternal integer currentNavNum;
+		
+		eternal boolean openDoors;
+		eternal boolean startTheFun;
+		
+		static integer	cinema_cut;
+		
+		static boolean firstAlphaVO;
+		static boolean secondAlphaVO;
+		static boolean firstBetaVO;
+		static boolean secondBetaVO;
+		static boolean firstGammaVO;
+		static boolean secondGammaVO;
+
+		eternal Integer DavionRating;
+		eternal Integer SteinerRating;
+		eternal Integer Nobility;
+		eternal Integer Infamy;
+		
+		static 	integer Group1Size;
+		
+ //------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+		
+		playermech = getplayervehicle(epl_player0);	
+		if (GetLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(1));
+		endif;
+		if (GetLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(2));
+		endif;
+		if (GetLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(1));
+		endif;
+		if (GetSecondaryLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(2));
+		endif;
+		if (GetSecondaryLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(4) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(4));
+		endif;
+		Group1Size = GroupSize(GroupObjectId(5));
+		
+
+		// First Chopper wave
+		GroupAddObject	(GroupObjectID(10), eve_heli01);
+		GroupAddObject	(GroupObjectID(10), eve_heli02);
+		GroupAddObject	(GroupObjectID(10), eve_heli03);
+		GroupAddObject	(GroupObjectID(10), eve_heli04);
+        SetGroupAI		(GroupObjectID(10), GROUPAI_MOODSQUAD);
+		// Second Chopper wave
+		GroupAddObject	(GroupObjectID(11), eve_heli05);
+		GroupAddObject	(GroupObjectID(11), eve_heli06);
+		GroupAddObject	(GroupObjectID(11), eve_heli07);
+		GroupAddObject	(GroupObjectID(11), eve_heli08);
+        SetGroupAI		(GroupObjectID(11), GROUPAI_MOODSQUAD);
+		// third Chopper wave
+		GroupAddObject	(GroupObjectID(12), eve_heli09);
+		GroupAddObject	(GroupObjectID(12), eve_heli10);
+		GroupAddObject	(GroupObjectID(12), eve_heli11);
+		GroupAddObject	(GroupObjectID(12), eve_heli12);
+		GroupAddObject	(GroupObjectID(12), eve_heli13);
+		GroupAddObject	(GroupObjectID(12), eve_heli14);
+        SetGroupAI		(GroupObjectID(12), GROUPAI_MOODSQUAD);
+ 		// First Flea Lance
+		GroupAddObject	(GroupObjectID(20), eve_shutDownMech01);
+		GroupAddObject	(GroupObjectID(20), eve_shutDownMech02);
+		GroupAddObject	(GroupObjectID(20), eve_shutDownMech03);
+		GroupAddObject	(GroupObjectID(20), eve_shutDownMech04);
+		GroupAddObject	(GroupObjectID(20), eve_shutDownMech05);
+		GroupAddObject	(GroupObjectID(20), eve_shutDownMech06);
+        SetGroupAI		(GroupObjectID(20), GROUPAI_MOODSQUAD);
+ 		// Second Flea Lance
+		GroupAddObject	(GroupObjectID(21), eve_shutDownMech07);
+		GroupAddObject	(GroupObjectID(21), eve_shutDownMech08);
+		GroupAddObject	(GroupObjectID(21), eve_shutDownMech09);
+		GroupAddObject	(GroupObjectID(21), eve_shutDownMech10);
+		GroupAddObject	(GroupObjectID(21), eve_shutDownMech11);
+		GroupAddObject	(GroupObjectID(21), eve_shutDownMech12);
+        SetGroupAI		(GroupObjectID(21), GROUPAI_MOODSQUAD);
+		// Osirii in SpacePort
+		GroupAddObject	(GroupObjectID(22), eve_baseMech01);
+		GroupAddObject	(GroupObjectID(22), eve_baseMech02);
+        SetGroupAI		(GroupObjectID(22), GROUPAI_MOODSQUAD);
+		// Mechs near Beta
+		GroupAddObject	(GroupObjectID(23), eve_betaMech01);
+		GroupAddObject	(GroupObjectID(23), eve_betaMech02);
+		GroupAddObject	(GroupObjectID(23), eve_betaMech03);
+		GroupAddObject	(GroupObjectID(23), eve_betaMech04);
+        SetGroupAI		(GroupObjectID(23), GROUPAI_MOODSQUAD);
+		// final two Ravens
+		GroupAddObject	(GroupObjectID(24), eve_deltaMech01);
+		GroupAddObject	(GroupObjectID(24), eve_deltaMech02);
+        SetGroupAI		(GroupObjectID(24), GROUPAI_MOODSQUAD);
+		
+		// FuelTanks for Obj1
+		fuelTanks = GroupObjectID(30);
+		GroupAddObject	(fuelTanks, ebu_fueltank01);
+		GroupAddObject	(fuelTanks, ebu_fueltank02);
+		GroupAddObject	(fuelTanks, ebu_fueltank03);
+		GroupAddObject	(fuelTanks, ebu_fueltank04);
+        SetGroupAI		(fuelTanks, GROUPAI_NONE);
+		// Communication buildings for Obj2
+		comBuildings = GroupObjectID(31);
+		GroupAddObject	(comBuildings, ebu_commbuilding01);
+		GroupAddObject	(comBuildings, ebu_commbuilding02);
+		GroupAddObject	(comBuildings, ebu_commbuilding03);
+		GroupAddObject	(comBuildings, ebu_commbuilding04);
+		GroupAddObject	(comBuildings, ebu_commbuilding05);
+		GroupAddObject	(comBuildings, ebu_commbuilding06);
+		GroupAddObject	(comBuildings, ebu_commbuilding07);
+        SetGroupAI		(comBuildings, GROUPAI_NONE);
+		// vehicles which must be destroyed for obj4 to be completed
+		obj4Group = GroupObjectID(32);
+		GroupAddObject	(obj4Group, eve_heli01);	//first Chopper wave
+		GroupAddObject	(obj4Group, eve_heli02);
+		GroupAddObject	(obj4Group, eve_heli03);
+		GroupAddObject	(obj4Group, eve_heli04);
+		GroupAddObject	(obj4Group, eve_heli05);	//second Chopper wave	
+		GroupAddObject	(obj4Group, eve_heli06);	
+		GroupAddObject	(obj4Group, eve_heli07);	
+		GroupAddObject	(obj4Group, eve_heli08);	
+		GroupAddObject	(obj4Group, eve_shutDownMech01);	//first flea wave
+		GroupAddObject	(obj4Group, eve_shutDownMech02);
+		GroupAddObject	(obj4Group, eve_shutDownMech03);
+		GroupAddObject	(obj4Group, eve_shutDownMech04);
+		GroupAddObject	(obj4Group, eve_shutDownMech05);
+		GroupAddObject	(obj4Group, eve_shutDownMech06);
+		GroupAddObject	(obj4Group, eve_betaMech01);		// mechs near beta
+		GroupAddObject	(obj4Group, eve_betaMech02);   
+		GroupAddObject	(obj4Group, eve_betaMech03);   
+		GroupAddObject	(obj4Group, eve_betaMech04);   
+        SetGroupAI		(obj4Group, GROUPAI_NONE);
+		// vehicles which must be destroyed for obj5 to be completed
+		obj5Group = GroupObjectID(33);
+		GroupAddObject	(obj5Group, eve_heli09);		//third chopper wave
+		GroupAddObject	(obj5Group, eve_heli10);	   
+		GroupAddObject	(obj5Group, eve_heli11);
+		GroupAddObject	(obj5Group, eve_heli12);
+		GroupAddObject	(obj5Group, eve_heli13);
+		GroupAddObject	(obj5Group, eve_heli14);
+		GroupAddObject	(obj5Group, eve_shutDownMech07);	//second flea lance
+		GroupAddObject	(obj5Group, eve_shutDownMech08);
+		GroupAddObject	(obj5Group, eve_shutDownMech09);
+		GroupAddObject	(obj5Group, eve_shutDownMech10);
+		GroupAddObject	(obj5Group, eve_shutDownMech11);
+		GroupAddObject	(obj5Group, eve_shutDownMech12);
+		GroupAddObject	(obj5Group, eve_deltaMech01);		// final 2 Ravens
+		GroupAddObject	(obj5Group, eve_deltaMech02);
+        SetGroupAI		(obj5Group, GROUPAI_NONE);
+		
+		SetTargetDesirability(ebu_turretControl01, 100);		//Lancemates will go after them first
+		SetTargetDesirability(ebu_turretControl02, 100);		//Lancemates will go after them first
+		SetTargetDesirability(eve_rabid_fox, 0);		//Enemies will target him last.
+   	
+		obj1 = false;
+		obj2 = false;
+		obj3 = false;
+		obj4 = false;
+		obj4Revealed = false;
+		obj5 = false;
+		obj6 = false;
+		
+		alphaReached = false;
+		betaReached = false;
+		gammaReached = false;
+		deltaReached = false;
+		
+		currentNavPoint = ena_Nav_Alpha;
+		currentNavNum = 1;
+		
+		cinema_cut = 0; 						
+		
+		DavionRating = GetPreviousDavionFactionRating;
+		Davionrating = DavionRating;
+		SteinerRating = GetPreviousSteinerFactionRating;
+		SteinerRating = SteinerRating;
+		Nobility = GetPreviousNobility;
+		nobility = nobility;
+		Infamy = GetPreviousInfamy;
+		infamy = infamy + 7;
+		
+		
+endfunction;
+		#include_ <content\ABLScripts\Katie\katie_script.abi>
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code
+				
+		RevealObjective(eob_Objective01);
+		RevealObjective(eob_Objective02);
+		//RevealObjective(eob_Objective03);
+		
+		RevealNavpoint(ena_Nav_Alpha);		
+		RevealNavpoint(ena_Nav_Beta);
+		RevealNavpoint(ena_Nav_Gamma);
+		
+		setRadarNav(ena_Nav_Alpha, 1);
+		setRadarNav(ena_Nav_Beta, 2);
+		setRadarNav(ena_Nav_Gamma, 3);
+		setRadarNav(ena_Nav_Delta, 4);
+		
+		SetNavPoint(ena_Nav_Alpha);
+		
+		//IntroVO
+		PlayVoiceOverOnce("VO\Avalon\MI1\TacopsSecured", talker_CAS);
+		StartMusic("Music\surprise",0.0,3.0,40);
+		
+		trans Opening;
+
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+	//Music
+	if (not ismusicplaying) then
+		StartMusic("Music\Arcticambloop",0.0,3.0,40);
+	endif;
+	
+	//Vo
+	if (not firstAlphaVO) then
+		PlayVoiceOverOnce("VO\Avalon\MI1\ClearDropShip", talker_SPE);
+		PlayLanceMateSound("vo\generic\MadeUs",1);
+		PlayVoiceOverOnce("VO\Avalon\MI1\TakeOutStations", talker_SPE);
+		firstAlphaVO = true;
+	endif;
+	if (not SecondAlphaVO) then
+		if obj1 and obj2 and (not groupAllDead(GroupObjectID(10))) then
+			if (not GroupAllDead(groupObjectID(5))) and (Group1Size > 0) then
+				PlayLanceMateSound("vo\generic\Choppers",1);
+			else
+				PlayVoiceOver("vo\generic\EnemyAir",talker_Cas);
+			endif;
+			PlayVoiceOverOnce("VO\Avalon\MI1\GetRidOfTagAlongs", talker_SPE);
+			SecondAlphaVO = true;
+		endif;
+	endif;
+	if (not firstBetaVO) then
+		if IsWithin(playerMech, groupObjectID(23), 975) then
+			if (not groupAllDead(GroupObjectID(11))) then
+				if (not GroupAllDead(groupObjectID(5))) and (Group1Size > 0) then
+					PlayLanceMateSound("vo\generic\Choppers",1);
+				else
+					PlayVoiceOver("vo\generic\EnemyAir",talker_Cas);
+				endif;
+			endif;
+			PlayVoiceOverOnce("VO\Avalon\MI1\InboundLance", talker_SPE);
+			firstBetaVO = true;
+		endif;
+	endif;
+	if (not secondBetaVO) then
+		if groupAllDead(groupObjectID(23)) and (not gammareached) then
+			PlayVoiceOverOnce("VO\Avalon\MI1\ContinuingToGamma", talker_SPE);
+			secondBetaVO = true;
+		endif;
+	endif;
+	if (not FirstGammaVo) then
+		if obj4Revealed and (not obj4) then
+			PlayVoiceOverOnce("VO\Avalon\MI1\AnyWordCastle", talker_SPE);
+			PlayVoiceOverOnce("VO\Avalon\MI1\Negative", talker_CAS);
+			PlayVoiceOverOnce("VO\Avalon\MI1\Roger", talker_SPE);
+			FirstGammaVo = true;
+		endif;
+	endif;
+	if (not secondGammaVo) then
+		if obj4 then
+			PlayVoiceOverOnce("VO\Avalon\MI1\StillNoWord", talker_SPE);
+			PlayVoiceOverOnce("VO\Avalon\MI1\outscene1", talker_FOX);
+			PlayVoiceOverOnce("VO\Avalon\MI1\OutScene2", talker_SPE);
+			PlayVoiceOverOnce("VO\Avalon\MI1\ClearUsAPath", talker_FOX);
+			PlayVoiceOverOnce("VO\Avalon\MI1\MarkingDelta", talker_SPE);
+			PlayVoiceOverOnce("VO\Avalon\MI1\MoreChoppers", talker_CAS);
+			PlayVoiceOverOnce("VO\Avalon\MI1\PairECMMechs", talker_FOX);
+			PlayVoiceOverOnce("VO\Avalon\MI1\MovingToEngage", talker_SPE);
+			secondGammaVo = true;
+			resetTimer(21);
+			cinema_cut = 0; 						
+			StartMusic("Music\NextMove",0.0,3.0,40);
+			trans cutscene;
+		endif;
+	endif;
+	//VO End
+		
+		if (not alphaReached) then
+			if isWithin (playerMech, ena_Nav_Alpha, 150) then
+				alphaReached = true;
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+			endif;
+		endif;
+		if (not betareached) then
+			if (iswithin(playermech,ena_nav_beta,150)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				setnavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+		if (not gammareached) then
+			if (iswithin(playermech,ena_nav_gamma,150)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+			endif;
+		endif;
+		if (not deltaReached) then
+			if (isnavrevealed(ena_nav_Delta)) then
+				if (iswithin(playermech,ena_nav_Delta,150)) then
+					playvoiceover("VO\generic\navdelta",talker_Bet);
+					deltaReached = true;
+				endif;
+			endif;
+		endif;
+			
+	
+		if (not obj1) then
+			if GroupAllDead(fueltanks) then
+				successObjective(eob_objective01);
+				obj1 = true;
+				if obj2 then
+					setNavPoint(ena_Nav_Beta);
+					RevealObjective(eob_Objective03);
+					//currentNavPoint = ena_Nav_Beta;
+					//currentNavNum = 2;
+				endif;
+			endif;
+		endif;
+		
+		if (not obj2) then
+			if GroupAllDead(comBuildings) then
+				successObjective(eob_objective02);
+				obj2 = true;
+				if obj1 then
+					setNavPoint(ena_Nav_Beta);
+					RevealObjective(eob_Objective03);
+				endif;
+			endif;
+		endif;
+		
+		if (not obj4Revealed) then
+			if (isWithin(playermech, ena_Nav_Gamma, 150) and obj1 and obj2) then
+				RevealObjective(eob_Objective04);
+				obj4Revealed = true;
+				if (not gammareached) then
+					setnavpoint(ena_Nav_Gamma);
+					betaReached = true;
+				endif;
+			endif;
+		endif;
+		
+		if (not obj4) then
+			if obj4Revealed and GroupAllDead(obj4Group) then
+				successObjective(eob_objective04);
+				obj4 = true;
+				// Rabid Fox shows up here.
+			endif;
+		endif;
+		
+		if obj3 then		// set in fox.abl, line 76
+			successObjective(eob_objective03);
+			obj3 = false;							//To prevent this from running repeatedly
+			RevealObjective(eob_Objective05);
+			RevealObjective(eob_Objective06);
+			RevealNavpoint(ena_Nav_Delta);		
+			setNavPoint(ena_Nav_Delta);
+		endif;
+		
+		if (not obj6) then
+			if isDead(eve_Rabid_Fox) then
+				failObjective(eob_objective06);
+				obj6 = true;
+				resetTimer(21);
+				cinema_cut = 0;
+				trans lostFox;
+			endif;
+		endif;
+		
+		if (not obj5) then
+			if GroupAllDead(obj5Group) and isWithin(playerMech, ena_Nav_Delta, 150) then
+				successObjective(eob_objective05);
+				successObjective(eob_objective06);
+				obj5 = true;
+				obj6 = true;
+				resetTimer(21);
+				/////////////////////
+				// MISSION SALVAGE //
+				/////////////////////
+				Katie(eve_shutDownMech01,60);
+				Katie(eve_shutDownMech02,50);
+				Katie(eve_shutDownMech03,40);
+				Katie(eve_shutDownMech04,30);
+				Katie(eve_shutDownMech05,20);
+				Katie(eve_shutDownMech06,20);
+
+				Katie(eve_shutDownMech07,60);
+				Katie(eve_shutDownMech08,50);
+				Katie(eve_shutDownMech09,40);
+				Katie(eve_shutDownMech10,30);
+				Katie(eve_shutDownMech11,20);
+				Katie(eve_shutDownMech12,20);
+
+				Katie(eve_baseMech01,50);
+				Katie(eve_baseMech02,40);
+
+				Katie(eve_betaMech01,60);
+				Katie(eve_betaMech02,50);
+				Katie(eve_betaMech03,40);
+				Katie(eve_betaMech04,30);
+
+				Katie(eve_deltaMech01,50);
+				Katie(eve_deltaMech02,40);
+
+				cinema_cut = 0;
+				trans won;
+			endif;
+		endif;
+
+//Fail the mission when the player dies
+	if (isdead(playermech)) then
+		failobjectiveall(9);
+		resetTimer(21);
+		cinema_cut = 0;
+		trans lost;
+	endif;
+
+				
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;
+	code
+
+		if cinemaSkip then
+			FadeToBlack(0.0);
+			CinemaEnd;
+			SetCompositingEnabled(true);			
+			playerAI(playermech, false);
+			killVoiceOvers;
+			startTheFun = true;
+			trans sit;
+		endif;
+ 	
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				FadeToBlack(0.0);
+				Fadefromblack(2.0);
+				Targetfollowobject(eve_Talon);
+				camerafollowobject(eve_Talon);
+				targetoffset(0.0, 5.0, 0.0, 0.0, false);
+                Cameraoffset(600.0, 5.0, 120.0, 0.0, False);       
+                Cameraoffset(200.0, 5.0, 0.0, 4.0, False);       
+				resetTimer(21);
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 4) then			//Timer 21, standard cinema timer
+					Cameraoffset(0.0, 5.0, -200.0, 4.0, False); 
+					resetTimer(21);      
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				if TimeGreater(21, 4) then
+					openDoors = true;			
+					resetTimer(21);      
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 3:
+				if TimeGreater(21, 3) then			
+					CinemaEnd;
+					SetCompositingEnabled(true);			
+					playerAI(playermech, false);
+					startTheFun = true;
+					trans sit;
+				endif;
+			endcase;
+		endswitch;
+endstate;
+
+state cutscene;
+	code
+		switch cinema_cut
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				FadeToBlack(0.0);
+				Fadefromblack(4.0);
+				Targetfollowobject(Ena_foxSpawn);
+				targetoffset(0.0, 5.0, 0.0, 0.0, false);
+				camerafollowobject(ena_nav_gamma);
+				Cameraoffset(38.3, 5.0, -12.0, 0.0, False);  
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if obj3 then
+					CinemaEnd;
+					SetCompositingEnabled(true);			
+					playerAI(playermech, false);
+					trans sit;
+				endif;
+			endcase;
+		endswitch;
+
+endstate;
+			
+
+state won;
+	code
+		
+		switch cinema_cut
+			case 0:
+				PlayVoiceOverOnce("VO\Avalon\MI1\Close1", talker_FOX);
+				PlayVoiceOverOnce("VO\Avalon\MI1\Close2", talker_SPE);
+				PlayVoiceOverOnce("VO\Avalon\MI1\Close3", talker_CAS);
+				PlayVoiceOverOnce("VO\Avalon\MI1\Close4", talker_SPE);
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericVictory1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericVictory2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut +1;
+			endcase;
+			
+			case 1:
+				if TimeGreater(21,4) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+		
+			case 2:	
+				//EndMission(true, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(playermech, playermech, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+								
+				SetCurrentInfamy(Infamy);
+				SetCurrentNobility(Nobility);
+				SetCurrentDavionFactionRating(DavionRating);
+				SetCurrentSteinerFactionrating(SteinerRating);
+				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true, 2);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostFox;
+	code
+		
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut +1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+                SetActiveCamera(eca_CameraShip);
+				PullOutCamera(eve_Rabid_Fox, eve_Rabid_Fox, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lost;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,3)
+					case 1:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:	
+				EndMission(false, 10);
+				//SetActiveCamera(eca_CameraShip);
+				//PullOutCamera(playermech, playermech, 250.0, 10.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+
+endfsm.
+//******************************************************************
+

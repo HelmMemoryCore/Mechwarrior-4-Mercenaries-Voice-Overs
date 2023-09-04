@@ -1,0 +1,78 @@
+
+//*********************************************************************************
+
+fsm Talon : integer;
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		
+		static boolean		shotbyTest;
+
+//------------------------------------------------------------------
+//
+//     Local Functions
+//
+//------------------------------------------------------------------
+
+function init;
+	code
+	
+	shotbyTest = false;
+
+endfunction;
+
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+	state startState;
+		code
+			if OpenDoors then
+                orderDoorOpen;
+			endif;
+			
+			if isDead(me) then
+				trans deadState;
+			endif;
+			
+	endstate;
+	
+	state deadState;
+		code
+		
+		if (not shotByTest) then
+			if (WhoDestroyed(me) == playerMech) then
+				infamy = infamy + 5;
+			endif;
+			shotByTest = true;
+		endif;
+  
+	endstate;
+
+
+endfsm.
+//******************************************************************
+

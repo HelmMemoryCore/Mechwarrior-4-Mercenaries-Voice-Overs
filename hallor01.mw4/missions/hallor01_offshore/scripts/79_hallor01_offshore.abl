@@ -1,0 +1,702 @@
+
+//*********************************************************************************
+
+fsm HalloranV_01 : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+			
+		eternal integer playermech;
+		
+		eternal Boolean	play1;			//Is this the first time the mission is being played?
+		eternal Boolean play2;			//Is this the second time the mission is being played?
+		eternal Boolean play3;			//Is this the third time the mission is being played?
+		
+		eternal integer numFuelTanks;	//Is the number of objects in group 15.
+		
+		eternal boolean obj1;			//Has Objective one been completed?
+		eternal Boolean obj2;			//has Objective two been completed?
+		eternal Boolean obj3;			//has Objective three been completed?
+		eternal integer enemyGroup;		//All the enemies in the mission.
+		
+		eternal Boolean launchPlanes;	//Used in planes.abl, launches the planes, set in Destroyers.abl and Mechs.abl
+		
+		static integer	cinema_cut;
+		
+		eternal Integer DavionRating;
+		eternal Integer SteinerRating;
+		eternal Integer Nobility;
+		eternal Integer Infamy;
+		
+		static boolean updateFlags;
+		
+		static boolean FirstAlphaVO;
+		static boolean SecondAlphaVO;
+		static boolean thirdAlphaVO;
+		static boolean FirstBetaVO;
+		static boolean SecondBetaVO;
+		static boolean thirdBetaVO;
+		static boolean fourthBetaVO;
+		static boolean fifthBetaVO;
+		static boolean FirstDestroyerVO;
+		static boolean SecondDestroyerVO;
+		static boolean ThirdDestroyerVO;
+		static boolean InfamyVO;
+		
+		static 	integer Group1Size;
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+		
+//------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+		playermech = getplayervehicle(epl_player0);	
+		if (GetLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(1));
+		endif;
+		if (GetLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(2));
+		endif;
+		if (GetLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(1));
+		endif;
+		if (GetSecondaryLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(2));
+		endif;
+		if (GetSecondaryLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(4) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(4));
+		endif;
+		Group1Size = GroupSize(GroupObjectId(5));
+		
+		obj1 = false;
+		obj2 = false;
+		obj3 = false;
+		
+		// Create the objectives group
+		GroupAddObject(GroupObjectID(10), ebu_ObjectiveBuilding02);
+		GroupAddObject(GroupObjectID(10), ebu_ObjectiveBuilding03);
+		GroupAddObject(GroupObjectID(10), ebu_ObjectiveBuilding04);
+		
+		// Create the secondary objectives group
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank01);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank02);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank03);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank04);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank05);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank06);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank07);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank08);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank09);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank10);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank11);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank12);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank13);
+		GroupAddObject(GroupObjectID(15), ebu_FuelTank14);
+		GroupAddObject(GroupObjectID(15), eve_FuelTruck01);
+		GroupAddObject(GroupObjectID(15), eve_FuelTruck02);
+		GroupAddObject(GroupObjectID(15), eve_FuelTruck03);
+		GroupAddObject(GroupObjectID(15), eve_FuelTruck04);
+		GroupAddObject(GroupObjectID(15), eve_FuelTruck05);
+		GroupAddObject(GroupObjectID(15), eve_barge01);
+		GroupAddObject(GroupObjectID(15), eve_barge02);
+		GroupAddObject(GroupObjectID(15), eve_barge03);
+		GroupAddObject(GroupObjectID(15), eve_barge04);
+		GroupAddObject(GroupObjectID(15), eve_barge05);
+		SetGroupAI	  (GroupObjectID(15), GroupAI_MOODSQUAD);
+		numFuelTanks = GroupSize(GroupObjectID(15));
+		
+		//Wave 1; boats
+		GroupAddObject(GroupObjectID(20), eve_Wave101);
+		GroupAddObject(GroupObjectID(20), eve_Wave102);
+		GroupAddObject(GroupObjectID(20), eve_Wave103);
+		GroupAddObject(GroupObjectID(20), eve_Wave104);
+		GroupAddObject(GroupObjectID(20), eve_Wave105);
+		GroupAddObject(GroupObjectID(20), eve_Wave106);
+		SetGroupAI	  (GroupObjectID(20), GroupAI_RADIOSQUAD);
+		//Wave 2; hovers
+		GroupAddObject(GroupObjectID(25), eve_Wave201);
+		GroupAddObject(GroupObjectID(25), eve_Wave202);
+		GroupAddObject(GroupObjectID(25), eve_Wave203);
+		GroupAddObject(GroupObjectID(25), eve_Wave204);
+		GroupAddObject(GroupObjectID(25), eve_Wave205);
+		GroupAddObject(GroupObjectID(25), eve_Wave206);
+		SetGroupAI	  (GroupObjectID(25), GroupAI_RADIOSQUAD);
+		//Destroyers
+		GroupAddObject(GroupObjectID(40), eve_Reynolds);
+		//planes
+		GroupAddObject(GroupObjectID(41), eve_plane01);
+		GroupAddObject(GroupObjectID(41), eve_plane02);
+		GroupAddObject(GroupObjectID(41), eve_plane03);
+		GroupAddObject(GroupObjectID(41), eve_plane04);
+		
+		//EnemyGroup
+		enemyGroup = GroupObjectID(45); 
+		GroupAddObject(enemyGroup, eve_Wave101);
+		GroupAddObject(enemyGroup, eve_Wave102);
+		GroupAddObject(enemyGroup, eve_Wave103);
+		GroupAddObject(enemyGroup, eve_Wave104);
+		GroupAddObject(enemyGroup, eve_Wave105);
+		GroupAddObject(enemyGroup, eve_Wave106);
+		GroupAddObject(enemyGroup, eve_Wave201);
+		GroupAddObject(enemyGroup, eve_Wave202);
+		GroupAddObject(enemyGroup, eve_Wave203);
+		GroupAddObject(enemyGroup, eve_Wave204);
+		GroupAddObject(enemyGroup, eve_Wave205);
+		GroupAddObject(enemyGroup, eve_Wave206);
+		GroupAddObject(enemyGroup, eve_Reynolds);		//destroyer01
+		SetGroupAI	  (enemyGroup, GroupAI_NONE);
+		
+		cinema_cut = 0;
+		
+		DavionRating = GetPreviousDavionFactionRating;
+		Davionrating = DavionRating;
+		SteinerRating = GetPreviousSteinerFactionRating;
+		SteinerRating = SteinerRating + 3;
+		Nobility = GetPreviousNobility;
+		nobility = nobility + 3;
+		Infamy = GetPreviousInfamy;
+		infamy = infamy;
+		
+endfunction;
+
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+		CheckRange = 150;
+		
+		// Intro VO
+		PlayVoiceOverOnce("VO\Halloran\MI1a\Intro", talker_CAS);
+		PlayVoiceOverOnce("VO\Halloran\MI1a\Intro1", talker_DEN);
+		PlayVoiceOverOnce("VO\Halloran\MI1a\Intro2", talker_SPE);
+		StartMusic("Music\rescue",3.5,3.0,50);
+			
+		// Reveal the Nav Points	   
+		setRadarNav(ena_Nav_Alpha, 1);
+		setRadarNav(ena_Nav_Beta, 2);
+		setRadarNav(ena_Nav_Gamma, 3);
+		setRadarNav(ena_Nav_Delta, 4);
+		revealNavpoint(ena_Nav_Alpha);
+		revealNavpoint(ena_Nav_Beta);
+		revealNavpoint(ena_Nav_Gamma);
+		revealNavpoint(ena_Nav_Delta);
+		setNavpoint (ena_Nav_Alpha);
+			
+		//Reveal the objectives
+		RevealObjective(eob_Objective01);
+		RevealObjective(eob_Objective02);
+		RevealObjective(eob_Objective03);
+		
+		SetTargetDesirability(ebu_ObjectiveBuilding01, 0);
+
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+	
+	//Music
+	if (not ismusicplaying) then
+		StartMusic("Music\arcticambloop",0.0,3.0,40);
+	endif;
+	
+	//VO
+	if (not FirstAlphaVO) then		//second intro
+		//if timeGreater(1, 5) then
+			PlayVoiceOverOnce("VO\Halloran\MI1a\ConfirmsCraft", talker_DEN);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\ConfirmsCraft1", talker_SPE);
+			if (not GroupAllDead(groupObjectID(5))) and (Group1Size > 0) then
+				PlayLanceMateSound("vo\generic\MilitiaPrejudice",1);
+				PlayVoiceOverOnce("VO\Halloran\MI1a\TakeThemOut", talker_SPE);
+				PlayLanceMateSound("vo\generic\Roger",1);
+			endif;
+			firstAlphaVO = true;
+		//endif;
+	endif;
+	if (not SecondAlphaVO) then
+		if GroupAllDead(GroupObjectID(20)) then		//wave at alpha dead
+			PlayVoiceOverOnce("VO\Halloran\MI1a\AlphaClear", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\SecondSet", talker_DEN);
+			PlayVoiceOver("VO\HalfSecond", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\BetaConfirms", talker_DEN);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\MakingToBeta", talker_SPE);
+			setNavpoint (ena_Nav_Beta);
+			secondAlphaVO = true;
+		endif;
+	endif;
+	if (not ThirdAlphaVO) then						//Boats engaged
+		//if isShot(ebu_ObjectiveBuilding01) then
+		if IsWithin(playerMech, GroupObjectID(20), 750) then
+			PlayVoiceOverOnce("VO\Halloran\MI1a\TakeOutQuick", talker_DEN);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\OnIt", talker_SPE);
+			ThirdAlphaVO = true;
+		endif;
+	endif;
+	if (not firstBetaVO) then
+		if IsWithin(playerMech, GroupObjectID(25), 800) and SecondAlphaVO then		//Hovers Spotted
+			PlayLanceMateSound("vo\generic\hoverContact",1);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\EngageHover", talker_SPE);
+			//PlayVoiceOverOnce("VO\Halloran\MI1a\WatchFueltanks", talker_CAS);
+			firstBetaVO = true;
+		endif;
+	endif;
+	if (not secondBetaVO) then
+        if GroupAllDead(GroupObjectID(25)) then		//wave at Beta dead
+			PlayVoiceOverOnce("VO\Halloran\MI1a\HoverNeutralized", talker_SPE);
+			PlayVoiceOver("VO\OneSecond", talker_SPE);
+			PlayVoiceOverOnce("VO\Halloran\MI1a\InterceptDestroyer", talker_den);
+			if (not GroupAllDead(groupObjectID(5))) and (Group1Size > 0) then
+				PlayVoiceOverOnce("VO\Halloran\MI1a\EarnCheck", talker_SPE);
+				PlayLanceMateSound("vo\generic\BestEffort",1);
+			endif;
+			setNavpoint (ena_Nav_Alpha);
+			secondBetaVO = true;
+		endif;
+	endif;
+	if (not thirdBetaVO) then			//Aircraft coming
+        if GroupnumDead(GroupObjectID(25)) > 3 then     
+			PlayVoiceOverOnce("VO\Halloran\MI1a\NightShadesETA", talker_CAS);
+			thirdBetaVO = true;
+		endif;
+	endif;
+	if (not FourthBetaVO) then		//Aircraft spotted
+		if IsWithin(playerMech, GroupObjectID(41), 800) and SecondAlphaVO then
+			if (not GroupAllDead(groupObjectID(5))) and (Group1Size > 0) then
+				PlayLanceMateSound("vo\generic\AirContact",1);
+			else
+				PlayVoiceOver("vo\generic\EnemyAir",talker_Cas);
+			endif;
+			FourthBetaVO = true;
+		endif;
+	endif;
+	if (not FifthBetaVO) then				//If in base, watch the fuel tanks
+		if IsWithin(playerMech, ena_Nav_gamma, 500) and firstBetaVO and
+			(not (isDead(ebu_FuelTank14) and isDead(ebu_FuelTank13)))	then
+			PlayVoiceOverOnce("VO\Halloran\MI1a\WatchFueltanks", talker_CAS);
+			FifthBetaVO = true;
+		endif;
+	endif;
+	if (not firstDestroyerVO) then
+        //if IsWithin(playerMech, eve_Reynolds, 800) then				//Reynolds appears
+		if timeGreater(25, 15) then
+			//PlayVoiceOverOnce("VO\Halloran\MI1a\InterceptDestroyer", talker_den);
+			//PlayVoiceOverOnce("VO\Halloran\MI1a\EarnCheck", talker_SPE);
+			//PlayLanceMateSound("vo\generic\BestEffort",1);
+			//PlayLanceMateSound("vo\generic\AirContact",1);
+			//PlayVoiceOverOnce("VO\Halloran\MI1a\GetInClose", talker_SPE);
+			firstDestroyerVO = true;
+		endif;
+	endif;
+	if (not SecondDestroyerVO) then
+		if IsDead(eve_Reynolds) then		//Reynolds dead
+			PlayVoiceOverOnce("VO\Halloran\MI1a\DidIt", talker_SPE);
+			SecondDestroyerVO = true;
+		endif;
+	endif;
+	if (not thirdDestroyerVO) and SecondAlphaVO then
+        if IsWithin(playerMech, eve_Reynolds, 800) then				//Reynolds Spotted
+			PlayVoiceOverOnce("VO\Halloran\MI1a\GetInClose", talker_SPE);
+			thirdDestroyerVO = true;
+		endif;
+	endif;
+	if (not infamyVO) then
+		if (whoShot(groupObjectID(15)) == playerMech) then
+			PlayVoiceOverOnce("VO\Halloran\MI1a\CheckFire", talker_den);
+			infamyVO = true;
+		endif;
+	endif;
+	//VO end
+	
+	// If half of the Fuel industry vehicles and buildings are destroyed, fail the secondary objective
+	if (not obj3) then
+		if ( groupNumDead(GroupObjectID(15)) > (numFuelTanks/2) ) then
+			failObjective(eob_objective03);
+			obj3 = true;
+		endif;
+	endif;
+
+	// If an Oil drill dies, mission fail
+	if (not obj1) then
+		if isDead(ebu_ObjectiveBuilding01) then
+			failObjective(eob_objective01);
+			obj1 = true;
+			
+			cinema_cut = 0;
+			resetTimer(21);
+			trans lostobj1;
+		endif;
+	endif;
+	
+	if (not obj2) then
+		if (GroupNumDead(GroupObjectID(10)) > 0 ) then
+			failObjective(eob_objective02);
+			obj2 = true;
+			
+			cinema_cut = 0;
+			resetTimer(21);
+			trans lostobj2;
+		endif;
+	endif;
+	
+	// if all attackers are dead, you win
+	if (not obj1) and (not obj2) then
+		if groupAllDead(enemyGroup) then
+			successObjective(eob_Objective01);
+			obj1 = true;
+			successObjective(eob_Objective02);
+			obj2 = true;
+			if (not obj3) then
+				successObjective(eob_Objective03);
+				AddMissionMoneyToBalance(500000);
+				obj3 = true;
+			endif;
+			// Salvage added by FAB on 4/18
+			//
+			cinema_cut = 0;
+			resetTimer(21);
+			trans won;
+		endif;
+	endif;
+			 
+//Fail the mission when the player dies
+	if (isdead(playermech)) then
+		failobjectiveall(9);
+		
+		cinema_cut = 0;
+		resetTimer(21);
+		trans lostPlayer;
+	endif;
+
+// Betty speaks when reaching Nav Point		FAB Add on 9-13
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not gammareached) then
+		if (isnavrevealed(ena_nav_gamma)) then
+			if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not deltareached) then
+		if (isnavrevealed(ena_nav_delta)) then
+			if (iswithin(playermech,ena_nav_delta,checkrange)) then
+				playvoiceover("VO\generic\navdelta",talker_Bet);
+				deltareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+				
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;
+	code
+
+		if cinemaSkip then
+			CinemaEnd;
+			SetCompositingEnabled(true);			
+			playerAI(playermech, false);
+			KillVoiceOvers;
+			resetTimer(1);
+			trans sit;
+		endif;
+ 	
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				//SpinUnderCamera(playermech, playermech, 30.0, 16.0, true);				
+				SpinOverCamera(playermech, playermech, 20.0, 16.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				//if TimeGreater(21, 16) then			//Timer 21, standard cinema timer
+				if (not IsVoiceOverPlaying) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				CinemaEnd;
+				SetCompositingEnabled(true);			
+				playerAI(playermech, false);
+				resetTimer(1);
+				trans sit;
+			endcase;
+		endswitch;
+endstate;
+
+state won;
+	code
+	
+		switch cinema_cut
+			case 0:
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericVictory1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericVictory2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				PlayVoiceOverOnce("VO\Halloran\MI1a\GreatWork", talker_DEN);
+				PlayVoiceOverOnce("VO\Halloran\MI1a\DontForgetIt", talker_SPE);
+				PlayVoiceOverOnce("VO\Halloran\MI1a\ExcellentWork", talker_CAS);
+				PlayVoiceOverOnce("VO\Halloran\MI1a\SpectreOut", talker_SPE);
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:	
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(playermech, playermech, 250.0, 10.0, true);
+				UpdateCameraPosition(eca_CameraShip);     
+								
+				SetCurrentInfamy(Infamy);
+				SetCurrentNobility(Nobility);
+				SetCurrentDavionFactionRating(DavionRating);
+				SetCurrentSteinerFactionrating(SteinerRating);
+				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true, 3);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+		endswitch;
+ 
+endstate;
+
+state lostPlayer;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,3)
+					case 1:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:	
+				EndMission(false, 10);
+				//SetActiveCamera(eca_CameraShip);
+				//PullOutCamera(playermech, playermech, 250.0, 10.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostobj1;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+				SetActiveCamera(eca_CameraShip);
+				HeadOnCamera(ebu_ObjectiveBuilding01, ebu_ObjectiveBuilding01, 25.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostobj2;
+	var
+		static ObjectID deadRig;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					if isDead(ebu_ObjectiveBuilding02) then
+						deadRig = ebu_ObjectiveBuilding02;
+					else
+						if isDead(ebu_ObjectiveBuilding03) then
+							deadRig = ebu_ObjectiveBuilding03;
+						else
+							deadRig = ebu_ObjectiveBuilding04;
+						endif;
+					endif;
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+				SetActiveCamera(eca_CameraShip);
+				HeadOnCamera(deadRig, deadRig, 25.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************
+

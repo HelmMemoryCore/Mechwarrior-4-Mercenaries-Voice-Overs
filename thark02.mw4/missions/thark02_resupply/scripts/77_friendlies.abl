@@ -1,0 +1,104 @@
+//*********************************************************************************
+
+fsm Friendlies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+				
+endfunction;
+		
+state StartState;
+
+	code
+	
+	switch memint9
+		case 1:
+			if obj2 then
+                AssignSkill(skillLevel);
+				trans sit;
+			endif;
+		endcase;
+		case 2:
+			if obj1 then
+                AssignSkill(skillLevel);
+				trans sit;
+			endif;
+		endcase;
+	endswitch;
+
+endstate;
+
+state sit;
+	code
+		
+		OrderMoveLookout;
+		
+		if ( SetMyTarget(attackRange) ) then
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			settarget(me, NO_UNIT);
+			orderStopAttacking;
+			clearMoveOrder(me);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

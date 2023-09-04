@@ -1,0 +1,89 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+//------------------------------------------------------------------
+
+fsm Torches : integer;
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+	code
+
+		if (IsDead(ME)) then
+			switch (GetMemoryInteger(me,9))
+				case 1:
+					KillEffect(ede_effect_0013);
+				endcase;
+				case 2:
+					KillEffect(ede_effect_0005);
+				endcase;
+				case 3:
+					KillEffect(ede_effect_0015);
+				endcase;
+				case 4:
+					KillEffect(ede_effect_0011);
+				endcase;
+				case 5:
+					KillEffect(ede_effect_0019);
+				endcase;
+				case 6:
+					KillEffect(ede_effect_0017);
+				endcase;
+				case 7:
+					KillEffect(ede_effect_0009);
+				endcase;
+				case 8:
+					KillEffect(ede_effect_0007);
+				endcase;
+			endswitch;
+			trans deadstate;
+		endif;
+		
+endstate;			
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+
+		orderDie;
+
+endstate;
+
+
+endfsm.

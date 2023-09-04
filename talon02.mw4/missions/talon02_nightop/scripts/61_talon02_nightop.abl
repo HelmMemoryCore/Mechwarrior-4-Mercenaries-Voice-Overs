@@ -1,0 +1,748 @@
+//*********************************************************************************
+
+fsm Talon02_NightOp : integer;
+
+//------------------------------------------------------------------
+//
+//	 Constant Definitions
+//
+//------------------------------------------------------------------
+	 const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi> // <-- mektek
+//------------------------------------------------------------------
+//
+//	 Type Definitions
+//
+//------------------------------------------------------------------
+	 type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//	 Variable Declarations
+//
+//------------------------------------------------------------------
+	  var
+
+		eternal integer		playermech;			// This is the variable for the player's 'Mech
+			
+		// Standard Nav and Objective Variables
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+		static boolean		epsilonreached;		// Nav Epsilon reached
+												//
+		static boolean		alpharevealed;		// Nav Alpha is shown
+		static boolean		betarevealed;		// Nav Beta is shown
+		static boolean		gammarevealed;		// Nav Gamma is shown
+		static boolean		deltarevealed;		// Nav Delta is shown
+		static boolean		epsilonrevealed;	// Nav Epsilon is shown
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+												//
+		eternal boolean		obj1;				// This indicates whether Objective 1 was completed
+		eternal boolean		obj2;				// This indicates whether Objective 2 was completed
+		eternal boolean		obj3;				// This indicates whether Objective 3 was completed
+		eternal boolean		obj4;				// This indicates whether Objective 4 was completed
+		eternal boolean		obj5;				// This indicates whether Objective 5 was completed
+		eternal boolean		obj6;				// This indicates whether Objective 6 was completed
+												//
+		static boolean		obj1revealed;		// This indicates that Objective 1 has been revealed
+		static boolean		obj2revealed;		// This indicates that Objective 2 has been revealed
+		static boolean		obj3revealed;		// This indicates that Objective 3 has been revealed
+		static boolean		obj4revealed;		// This indicates that Objective 4 has been revealed
+		static boolean		obj5revealed;		// This indicates that Objective 5 has been revealed
+		//	
+		
+		static integer		cinema_cut;			// This variable keeps track of what scene a cinema is on.
+		static locpoint		temploc;			// Used for commands that need objects converted to locpoint format
+		static boolean		loser;				// You have lost the mission
+ 		eternal integer 	DavionRating;		// This is your Davion rating
+		eternal integer 	SteinerRating;		// This is your Steiner rating
+		eternal integer 	Nobility;			// This is your Nobility rating
+		eternal integer 	Infamy;				// This is your Infamy rating
+ 
+		// Trigger States
+		static integer		Victory;			// How many objectives you have completed
+		eternal boolean		HillTop;			// Is the player on top of a hill
+		eternal integer		DistanceMod;		// Distance to spot modifier
+		eternal integer		Strikes;			// You have to screw up for a bit to get spotted
+		static integer		LastStrike;			// This is the number of the last strike
+		eternal integer		Balls;				// This is another check for being spotted
+		static integer		LastBall;			// This is the number of the last ball
+		eternal boolean		SensorsOn;			// The player's sensors are on and he can be easily spotted
+		eternal boolean		FirstContact;		// The player has been detected, enemies are on full alert
+		static boolean		AlphaOffSite;		// You went off-site briefly
+		static boolean		BetaOffSite;		// You went off-site briefly
+		static boolean		GammaOffSite;		// You went off-site briefly
+		eternal boolean		LetHimRun;			// He's escaped, nothing to do now but pout
+		
+//------------------------------------------------------------------
+//
+//	 Init Function	(automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+			playermech = getplayervehicle(epl_player0);
+
+			// 10 - Governor's Mansion
+			GroupAddObject(GroupObjectID(10),ebu_factory);
+			GroupAddObject(GroupObjectID(10),ebu_objectivebuilding02);
+			GroupAddObject(GroupObjectID(10),ebu_objectivebuilding03);
+			//GroupAddObject(GroupObjectID(10),ebu_geothermal_generator);
+
+			// 20 - All enemies
+			GroupAddObject(GroupObjectID(20),eve_epatrol01);
+			GroupAddObject(GroupObjectID(20),eve_epatrol02);
+			GroupAddObject(GroupObjectID(20),eve_npatrol01);
+			GroupAddObject(GroupObjectID(20),eve_npatrol02);
+			GroupAddObject(GroupObjectID(20),eve_spatrol01);
+			GroupAddObject(GroupObjectID(20),eve_spatrol02);
+			GroupAddObject(GroupObjectID(20),eve_spatrol03);
+			GroupAddObject(GroupObjectID(20),eve_wpatrol01);
+			SetGroupAI(GroupObjectID(20),GROUPAI_MOODSQUAD);
+
+			// 30 - All buildings
+			GroupAddObject(GroupObjectID(30),ebu_air_control_tower);
+			GroupAddObject(GroupObjectID(30),ebu_aptbldg2);
+			GroupAddObject(GroupObjectID(30),ebu_aptbldg2_0001);
+			GroupAddObject(GroupObjectID(30),ebu_aptbldg3);
+			GroupAddObject(GroupObjectID(30),ebu_basehq);
+			GroupAddObject(GroupObjectID(30),ebu_crate_stack);
+			GroupAddObject(GroupObjectID(30),ebu_crate_stack_0000);
+			GroupAddObject(GroupObjectID(30),ebu_crate_stack_0001);
+			GroupAddObject(GroupObjectID(30),ebu_factory);
+			GroupAddObject(GroupObjectID(30),ebu_factory3);
+			GroupAddObject(GroupObjectID(30),ebu_factory3_0001);
+			GroupAddObject(GroupObjectID(30),ebu_factory3_0003);
+			GroupAddObject(GroupObjectID(30),ebu_fuel_tanks);
+			GroupAddObject(GroupObjectID(30),ebu_fuel_tanks_0001);
+			GroupAddObject(GroupObjectID(30),ebu_generator_control);
+			GroupAddObject(GroupObjectID(30),ebu_helopad);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0001);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0004);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0005);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0010);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0011);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0012);
+			GroupAddObject(GroupObjectID(30),ebu_helopad_0013);
+			GroupAddObject(GroupObjectID(30),ebu_Mech_Storage);
+			GroupAddObject(GroupObjectID(30),ebu_mech_repair_bldg);
+			GroupAddObject(GroupObjectID(30),ebu_mech_repair_bldg_0001);
+			GroupAddObject(GroupObjectID(30),ebu_repair_platform);
+			GroupAddObject(GroupObjectID(30),ebu_townbldg2);
+			GroupAddObject(GroupObjectID(30),ebu_turretControl01);
+			GroupAddObject(GroupObjectID(30),ebu_vehicle_hangar);
+			GroupAddObject(GroupObjectID(30),ebu_vehicle_hangar2);
+			GroupAddObject(GroupObjectID(30),ebu_vehicle_hangar2_0000);
+			GroupAddObject(GroupObjectID(30),ebu_geothermal_generator);
+			GroupAddObject(GroupObjectID(30),ebu_fuel_tank_0003);
+			GroupAddObject(GroupObjectID(30),ebu_fuel_tank_0001);
+			GroupAddObject(GroupObjectID(30),ebu_fuel_tank);
+			GroupAddObject(GroupObjectID(30),ebu_fuel_tanks_0002);
+			GroupAddObject(GroupObjectID(30),ebu_Mech_Hangar);
+
+			cinema_cut = 0;
+
+			// Culturals
+			//SetTarget(ede_example2,eve_example3);
+		
+endfunction;
+		#include_ <content\ABLScripts\Katie\katie_script.abi>
+//------------------------------------------------------------------
+//
+//	 Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+
+		// These are your MetaMission variables, second part is how this mission effects your ratings
+			DavionRating 	= GetPreviousDavionFactionRating;
+			SteinerRating 	= GetPreviousSteinerFactionRating;
+			Nobility 		= GetPreviousNobility;
+			Infamy 			= GetPreviousInfamy;
+			
+			DavionRating	= DavionRating + 0;
+			SteinerRating	= SteinerRating + 11;
+			Nobility		= Nobility + 0;
+			Infamy			= Infamy + 8;
+		// 
+		
+		SetRadarNav(ena_Nav_Alpha,1);
+		SetRadarNav(ena_Nav_Beta,2);
+		SetRadarNav(ena_Nav_Gamma,3);
+		SetRadarNav(ena_Nav_Delta,4);
+		SetRadarNav(ena_Nav_Epsilon,5);
+		RevealNavpoint(ena_Nav_Alpha);
+		RevealNavpoint(ena_Nav_Beta);
+		RevealNavpoint(ena_Nav_Gamma);
+		SetNavpoint(ena_Nav_Alpha);
+
+		//setsensorvisibility(eve_example4,false);
+		
+		checkrange	= 100;		// How far from a nav point before the Betty voice says you've arrived.
+		LastStrike = 0;
+		LastBall = 0;
+
+		StartMusic("Music\NextMove",3.0,3.5,50);
+		
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+	
+endstate;
+	
+//------------------------------------------------------------------
+//
+//	 Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+
+	if IsMusicPlaying == false then
+		StartMusic("music\LavaAmbLoop",0.0,3.0,40);
+	endif;
+
+// Sound Triggers
+
+	if (not GetGlobalTrigger(3)) then
+		if (IsWithin(PlayerMech,GroupObjectID(20),900)) then	// Once you get close to any 'Mech
+			SetGlobalTrigger(3,true);
+			PlayVoiceOverOnce("vo\talon\mi2\VisualOnEnemy",TALKER_SPE);
+			PlayVoiceOverOnce("vo\talon\mi2\AvoidHighGround",TALKER_CAS);
+		endif;
+	endif;
+
+// Talon 2 Specific Triggers
+
+	if (not GetGlobalTrigger(20)) then
+		if (timegreater(1,11)) then
+			SetGlobalTrigger(20,true);
+			HelpMessage(eob_lightamp,10);
+		endif;
+	endif;
+	
+	if (not FirstContact) then
+		if (LastStrike < Strikes) or (LastBall < Balls) then
+			//FailObjective(eob_objective1);
+			HelpMessage(eob_spotting,1);
+			LastStrike = Strikes;
+			LastBall = Balls;
+		endif;
+	endif;
+
+	if (not HillTop) then		// If you are higher, you are easier to spot
+		GetLocation(PlayerMech,TempLoc);
+		if (TempLoc[1]>128) then
+			HillTop = True;
+			DistanceMod = 150;
+		endif;
+	else
+		GetLocation(PlayerMech,TempLoc);
+		if (TempLoc[1]<128) then
+			HillTop = False;
+			DistanceMod = 0;
+		endif;
+	endif;
+	
+	if (not FirstContact) then		// Leave your sensors on check
+		if (GetSensorMode(PlayerMech) == SENSOR_ACTIVE) then
+			SensorsOn = True;
+		else
+			SensorsOn = False;
+		endif;
+	endif;
+	
+	if (not FirstContact) then		// Spotted too many times and you are out
+		if (Strikes == 70) then
+			FirstContact = True;
+		endif;
+	endif;
+	
+	if (not FirstContact) then   // If you shoot any of the buildings, the alarm goes
+		if (IsShot(GroupObjectID(10))) or (GroupNumDead(GroupObjectID(30))>0) then
+			FirstContact 	= True;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(1)) then
+		if (FirstContact) then		// Once you've been spotted
+			StartTimer(5);		// Timer for power up 'Mechs
+			SetGlobalTrigger(1,true);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(2)) then
+		if (GetSensorMode(PlayerMech) == SENSOR_PASSIVE) then
+			//Helpmessage(-2,1);
+			PlayVoiceOverOnce("vo\talon\mi2\PassiveSet",TALKER_SPE);
+			PlayVoiceOverOnce("vo\talon\mi2\FirstObjective",TALKER_CAS);
+			PlayVoiceOverOnce("vo\talon\mi2\Acknlowedged",TALKER_SPE);
+			SetGlobalTrigger(2,true);
+		else
+			if (not timegreater(1,10)) then
+				HelpMessage(eob_HelpSensors,1);
+			endif;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(4)) then
+		if (IsDead(ebu_fuel_tanks_0002)) then
+			SetGlobalTrigger(4,true);
+			Destroy(ebu_Geothermal_Generator);
+			StartMusic("Music\Hunter",3.0,3.5,50);
+		endif;
+	endif;
+	
+// Obj 1 - Investigate Building at Nav Alpha
+
+	if (not Obj1Revealed) then
+		if (IsWithin(PlayerMech,ena_Nav_Alpha,CheckRange)) then
+			StartTimer(3);		// Timer for mission scanning delays
+			ResetTimer(3);
+			PlayVoiceOverOnce("vo\talon\mi2\AtAlpha",TALKER_SPE);
+			PlayVoiceOverOnce("vo\talon\mi2\ScanFor20Seconds",TALKER_CAS);
+			if (AlphaOffSite) then
+				AlphaOffSite = False;
+				PlayVoiceOver("vo\talon\mi2\ReinitiatingScan",TALKER_SPE);
+			endif;
+			Obj1Revealed = True;
+		endif;
+	endif;
+	
+	if (Obj1Revealed) then
+		if (not Obj1) then
+			if (not IsWithin(PlayerMech,ena_nav_alpha,checkrange)) then
+				PlayVoiceOver("vo\talon\mi2\StartOver",TALKER_CAS);
+				AlphaOffsite = True;
+				Obj1Revealed = False;
+			endif;
+		endif;
+	endif;
+
+	if (not Obj1) then
+		if (IsDead(ebu_factory)) then
+			FailObjective(eob_objective1);
+			StartTimer(2);		// You are a loser
+			Loser = True;
+			Obj1 = true;
+		endif;
+	endif;
+	
+	if (not Obj1) then
+		if (Obj1Revealed) then
+			if (timegreater(3,20)) then
+				SuccessObjective(eob_objective1);
+				PlayVoiceOverOnce("vo\talon\mi2\AlphaScanned",TALKER_SPE);
+				Victory = Victory + 1;
+				KillTimer(3);
+				SetNavpoint(ena_Nav_Beta);
+				obj1 = true;
+			endif;
+		endif;
+	endif;
+
+// Obj 2 - Investigate Building at Nav Beta
+
+	if (not Obj2Revealed) then
+		if (IsWithin(PlayerMech,ena_Nav_Beta,CheckRange)) then
+			StartTimer(3);		// Timer for mission scanning delays
+			ResetTimer(3);
+			if (BetaOffSite) then
+				BetaOffSite = False;
+				PlayVoiceOver("vo\talon\mi2\ReinitiatingScan",TALKER_SPE);
+			endif;
+			Obj2Revealed = True;
+		endif;
+	endif;
+
+	if (not Obj2) then
+		if (IsDead(ebu_objectivebuilding03)) then
+			FailObjective(eob_objective2);
+			StartTimer(2);		// You are a loser
+			Loser = True;
+			Obj2 = true;
+		endif;
+	endif;
+	
+	if (Obj2Revealed) then
+		if (not Obj2) then
+			if (not IsWithin(PlayerMech,ena_nav_beta,checkrange)) then
+				PlayVoiceOver("vo\talon\mi2\StartOver",TALKER_CAS);
+				BetaOffsite = True;
+				Obj2Revealed = False;
+			endif;
+		endif;
+	endif;
+	
+	if (not Obj2) then
+		if (Obj2Revealed) then
+			if (timegreater(3,20)) then
+				SuccessObjective(eob_objective2);
+				PlayVoiceOverOnce("vo\talon\mi2\BetaScanned",TALKER_SPE);
+				PlayVoiceOverOnce("vo\talon\mi2\OnToGamma",TALKER_SPE);
+				Victory = Victory + 1;
+				KillTimer(3);
+				SetNavpoint(ena_Nav_Gamma);
+				obj2 = true;
+			endif;
+		endif;
+	endif;
+	
+// Obj 3 - Investigate Building at Nav Gamma
+
+	if (not Obj3Revealed) then
+		if (IsWithin(PlayerMech,ena_Nav_Gamma,CheckRange)) then
+			StartTimer(3);		// Timer for mission scanning delays
+			ResetTimer(3);
+			if (GammaOffSite) then
+				GammaOffSite = False;
+				PlayVoiceOver("vo\talon\mi2\ReinitiatingScan",TALKER_SPE);
+			endif;
+			Obj3Revealed = True;
+		endif;
+	endif;
+
+	if (Obj3Revealed) then
+		if (not Obj3) then
+			if (not IsWithin(PlayerMech,ena_nav_gamma,checkrange)) then
+				PlayVoiceOver("vo\talon\mi2\StartOver",TALKER_CAS);
+				GammaOffsite = True;
+				Obj3Revealed = False;
+			endif;
+		endif;
+	endif;
+
+	if (not Obj3) then
+		if (IsDead(ebu_objectivebuilding02)) then
+			FailObjective(eob_objective3);
+			Obj3 = true;
+			Loser = true;
+			StartTimer(2);		// You are a loser
+		endif;
+	endif;
+	
+	if (not Obj3) then
+		if (Obj3Revealed) then
+			if (timegreater(3,20)) then
+				SuccessObjective(eob_objective1);
+				SuccessObjective(eob_objective2);
+				Obj1 = True;
+				Obj2 = True;
+				SuccessObjective(eob_objective3);
+				PlayVoiceOverOnce("vo\talon\mi2\BingoTemplars",TALKER_SPE);
+				if (not IsDead(ebu_geothermal_generator)) then
+					PlayVoiceOverOnce("vo\talon\mi2\GreatWorkCoverEscape",TALKER_CAS);
+				endif;
+				if (not obj6) then
+					SuccessObjective(eob_objective6);
+				endif;
+				RevealObjective(eob_objective4);
+				RevealNavpoint(ena_Nav_Delta);
+				SetNavpoint(ena_Nav_Delta);
+				Obj4Revealed = True;
+				KillTimer(3);
+				obj3 = true;
+			endif;
+		endif;
+	endif;
+	
+	if (not Obj4Revealed) then
+		if (Victory == 3) then
+			RevealObjective(eob_objective4);
+			Obj4Revealed = True;
+			RevealNavpoint(ena_Nav_Delta);
+			SetNavpoint(ena_Nav_Delta);
+		endif;
+	endif;
+	
+// Obj 4 - Destroy the power plant
+
+	if (not obj4) then
+		if (IsDead(ebu_geothermal_generator)) then
+			if (Obj4Revealed) then
+				SuccessObjective(eob_objective4);
+				Obj5Revealed = True;
+				PlayVoiceOverOnce("vo\talon\mi2\ExitAtEpsilon",TALKER_CAS);
+				PlayVoiceOverOnce("vo\talon\mi2\RogerToEpsilon",TALKER_SPE);
+				RevealObjective(eob_objective5);
+				RevealNavpoint(ena_Nav_Epsilon);
+				SetNavpoint(ena_Nav_Epsilon);
+				obj4 = true;
+			endif;
+		endif;
+	endif;
+
+// Obj 5 - Escape to Nav Epsilon
+
+	if (not obj5) then
+		if (obj5revealed) then
+			if (IsWithin(PlayerMech,ena_nav_epsilon,CheckRange)) then
+				SuccessObjective(eob_objective5);
+				LetHimRun	= True;
+				obj5 = true;
+				StartTimer(2);		// You finally win
+			endif;
+		endif;
+	endif;
+	
+// Obj 6 - Remain stealthy
+
+	if (not Obj3) then
+		if (not Obj6) then
+			if (FirstContact) then
+				FailObjective(eob_objective6);
+				Obj6 = True;
+			endif;
+		endif;
+	endif;
+	
+// Victory and Loss conditions
+													   
+	if (timegreater(2,5)) then
+		  
+		// Salvage Added by WHO on DATE
+		//
+
+		if WhoDestroyed(eve_boxvan) == PlayerMech then
+			Infamy = Infamy + 1;
+		endif;
+		SetCurrentInfamy(Infamy);
+		SetCurrentNobility(Nobility);
+		SetCurrentDavionFactionRating(DavionRating);
+		SetCurrentSteinerFactionrating(SteinerRating);
+		
+		if (loser) then
+			EndMission(false,5);
+			trans lost;
+		else
+			trans won;	
+		endif;
+		
+	endif;
+
+// Fail the mission when the player dies
+	if (isdead(playermech)) then
+		KillVoiceOvers;
+		switch rand(1,3)
+			case 1:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+			endcase;
+			case 2:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+			endcase;
+			case 3:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+			endcase;
+		endswitch;
+		StartMusic("Music\GenericLoss1",3.0,3.5,70);
+		endmission(false,14);
+		trans deadstate;
+	endif;
+
+// Betty speaks when reaching Nav Point
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not gammareached) then
+		if (isnavrevealed(ena_nav_gamma)) then
+			if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not Deltareached) then
+		if (isnavrevealed(ena_nav_Delta)) then
+			if (iswithin(playermech,ena_nav_Delta,checkrange)) then
+				playvoiceover("VO\generic\navDelta",talker_Bet);
+				Deltareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not Epsilonreached) then
+		if (isnavrevealed(ena_nav_Epsilon)) then
+			if (iswithin(playermech,ena_nav_Epsilon,checkrange)) then
+				playvoiceover("VO\generic\navEpsilon",talker_Bet);
+				Epsilonreached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+		
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;	  
+
+	code
+
+		if (cinemaskip) then
+			KillVoiceOvers;	 
+			cinema_cut = 0;	 
+			KillTimer(gti_timer_21);
+			SetGlobalTrigger(0,true);
+			playerai(epl_player0,false);
+			StartTimer(1);		// This is the mission start timer
+			ResetTimer(1);
+			CinemaEnd;		  
+			SetCompositingEnabled(True);
+			revealobjective(eob_objective1);
+			RevealObjective(eob_objective2);
+			RevealObjective(eob_objective3);
+			RevealObjective(eob_objective6);
+			HelpMessage(eob_HelpSensors,1);
+			trans sit;
+		endif;
+		
+		switch (cinema_cut)
+
+			case 0:
+				CinemaStart;
+				SetActiveCamera(eca_CameraShip);
+				
+				HeadOnCamera(PlayerMech,PlayerMech,17.0,9.0,true);
+				PlayVoiceOverOnce("vo\talon\mi2\PassiveSensors",TALKER_CAS);
+				SetSearchLight(PlayerMech, False);
+				SetSearchLight(eve_basemech01, False);
+				SetSearchLight(eve_basemech02, False);
+				SetSearchLight(eve_basemech03, False);
+				
+				cinema_cut = cinema_cut + 1;
+				
+				starttimer(21);			// This is the cineractive counter.
+				resettimer(21);
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					ResetTimer(21);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;
+			
+			case 2:
+				if (timegreater(21,2)) then
+					KillVoiceOvers;
+					cinema_cut = 0;
+					KillTimer(gti_timer_21);
+					SetGlobalTrigger(0,true);
+					playerai(epl_player0,false);
+					StartTimer(1);		// This is the mission start timer
+					ResetTimer(1);
+					CinemaEnd;
+					revealobjective(eob_objective1);	// Reveal the objectives
+					RevealObjective(eob_objective2);
+					RevealObjective(eob_objective3);
+					RevealObjective(eob_objective6);
+					HelpMessage(eob_HelpSensors,1);
+					SetCompositingEnabled(True);
+					
+					trans sit;
+				endif;
+			endcase;
+				
+		endswitch;
+	
+endstate;
+
+state won;	  
+
+	code
+		
+		if (cinemaskip) then
+			cinema_cut = 20;	
+			playerai(epl_player0,false);
+			KillVoiceOvers;
+			Endmission(true,1); 
+		endif;
+
+		switch cinema_cut
+		
+			case 0:	
+				StartMusic("Music\GenericVictory1",3.0,3.5,50);					 
+				PlayVoiceOverOnce("vo\talon\mi2\Close1",TALKER_CAS);
+				PlayVoiceOverOnce("vo\talon\mi2\Close2",TALKER_SPE);
+				SetCompositingEnabled(False);
+				CinemaStart;
+				setactivecamera (eca_cameraship);
+				
+				PullOutCamera(PlayerMech,PlayerMech,17.0,9.0,true);
+				
+				playerai(epl_player0,true);
+				Cinema_cut=Cinema_cut+1;
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true,2);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;			
+			
+		endswitch;
+	
+endstate;
+
+state lost;
+
+		code
+		
+		switch cinema_cut
+		
+			case 0:	
+			
+			endcase;
+			
+			case 1:
+			
+			endcase;
+			
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************

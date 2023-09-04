@@ -1,0 +1,145 @@
+//*********************************************************************************
+
+fsm OutPostmechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static integer			MoveType;		
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static LocPoint			leashPoint;
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 6;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		pathEndReached 			= false;
+		unitPath				= epa_retreatPath;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	//resetTimer(gti_timer_10);
+	trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+		//if timeGreater(gti_Timer_10, 10) then
+			trans sit;
+		//endif;
+			
+endstate;		
+
+state sit;
+	code
+	
+		OrderMoveLookout;
+		
+		if FindEnemy(attackRange, FT_DEFAULT + FT_BUILDING) then
+			trans attackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if GroupNumDead(alphaGroup) > 2 then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			groupRemoveObject(alphaGroup, me);
+			trans Run;
+		endif;
+					
+endstate;
+
+State run;
+	code
+	
+	if pathEndReached then
+		orderMoveLookOut;
+	else
+		if OrderMoveResumePatrol(unitPath, 200, MOVE_NOCYCLE, true, false) then
+			pathEndReached = true;
+		endif;
+	endif;
+	
+	if (WhoDestroyed(me) == playerMech) then
+		//infamy = infamy + 2;	//dishonorable to kill mechs who are running away
+	endif;
+		
+	if isdead(me) then
+		trans deadState;
+	endif;
+	
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

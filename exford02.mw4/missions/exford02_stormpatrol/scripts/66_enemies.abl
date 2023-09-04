@@ -1,0 +1,380 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+//------------------------------------------------------------------
+
+fsm Militia : integer;
+
+
+//------------------------------------------------------------------
+// Moving AI:
+//   This script controls movers that do not go aggressive.
+//   MILITIA - This script controls the Steiner militia, the enemy of the PCs.
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		
+    // Standard Mech and Vehicle variables
+        static integer			attackRange;		// At what range do I start shooting?
+		static integer			withdrawRange;		// At what range do I withdraw from combat completely?
+                                                    //
+		static integer			SkillLevel;			// Used by Assign Skill for the difficulty of an enemy
+		static integer			piloting;			// Piloting skill
+		static integer			gunnery;			// Gunnery skill/chance to hit
+		static real				minDelay;			// Minimum amount of time I will wait between shots once a weapon is reloaded
+		static real				maxDelay;			// Maximum amount of time I will wait between shots once a weapon is reloaded
+		static integer 			eliteLevel;			// Elite level.  This helps determine tactics, defensive manuevers, opportunity fire
+													// and other things.  It indicates a general level of combat experience.
+		static integer			attackThrottle;		// My attack throttle
+		static integer			mytactic;			// Combat tactic I use - 0 means standard attack
+		static integer			findTypes;			// What kind of enemies to look for
+													//
+        static integer			path;	            // What path to take.
+		static integer			myobject;			// Where this unit will head to
+        static integer			speed;	            // Speed on the path.
+		static integer			MyGroup;			// Which MemoryInteger you work for
+		static integer			GroupNumber;		// What's my group -- i.e. I will use GroupObjectID(groupNumber) to identify my group
+		static integer			formationType;		// What kind of formation am I in?
+		static integer			formationDensity;	// How densely are we packed?
+		static integer			moveType;			// How I move along the path
+                                                    //
+ 		static integer			isShotRadius;		// How far away from me will I detect an enemy shot?
+                                                    //
+		static integer 			attackSound;		// The attack sound I play when I first attack
+		static integer 			deathSound;			// The sound I play when I die
+		                                            //
+		static integer			mood;				// My default 
+		static integer			takeOffDistance;	// My take-off distance if I'm an airplane (ignored if not an airplane)
+    //
+		
+	// Generic Special Unit Functions	
+		static boolean			ToHell;				// I am going to teleport to hell
+		static boolean			PowerDown;		   	// I start off shutdown
+		static boolean			Visible;			// Am I on radar
+		static boolean			RadarOff;			// This 'Mech doesn't use radar (no missile boats!)
+		static boolean			AmPlane;			// I am a plane unit
+		static boolean			SlowDown;			// I am slower than the average bear w/attack throttle (Light 'Mech)
+		static integer			MyTimer;			// When I show up timewise
+		static locpoint			MyNav;				// Where I teleport to from hell
+	// 
+		
+		static integer			DelayTimer;			// How long it will take me to power up
+		static integer			MyEnemy;			// Who I attack
+		static integer			MyDist;				// The distance at which I pop up
+
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+		// script-specific variables
+		attackRange		= 1000;
+		withdrawRange	= AttackRange * 3 / 2;
+		path			= -1;
+		moveType		= move_circle;
+		speed			= 90;
+		formationType	= 1;
+		formationDensity= formtype_sparse;
+		findTypes		= FT_DEFAULT;
+
+		takeOffDistance	= 150;
+
+		// driver settings
+		SkillLevel		= 7;
+		attackSound		= -1; // no sound
+		deathSound		= -1; // no sound
+		mood			= AGRESSIVE_START;
+		
+		MyDist			= 200;		// Most enemies appear at 200m
+		
+        MyGroup			= GetMemoryInteger(me,9);
+		SetSensorMode(me,SENSOR_PASSIVE);
+		switch (MyGroup)
+        
+            case 1:		// Near Nav Alpha
+				PowerDown		= True;
+			endcase;
+			
+            case 2:		// Initial scouts
+				//SlowDown		= True;
+				//AttackThrottle	= 50;
+			endcase;
+
+            case 3:		// Near Nav Gamma
+				PowerDown		= True;
+				if (GetMemoryInteger(me,8)==1) then
+					MyDist		= 400;
+				endif;
+			endcase;
+			
+			case 4:		// Near Nav Delta
+				PowerDown		= True;
+			endcase;
+
+			case 5:		// Dropship
+				PowerDown		= True;
+			endcase;
+			
+        endswitch;
+		
+		/*switch (GetMemoryInteger(me,8))
+			case 0:
+				MyEnemy = PlayerMech;
+			endcase;
+			case 1:
+				MyEnemy = GetLancemate(1);
+			endcase;
+			case 2:
+				MyEnemy = GetLancemate(2);
+			endcase;
+			case 3:
+				MyEnemy = GetLancemate(3);
+			endcase;
+		endswitch; */
+
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+		SetSearchLight(me,false);
+		AssignSkill(SkillLevel);
+		
+		/* Use a Select Statement to change these for a particular unit
+		SetFiringDelay			(ME,minDelay,maxDelay);
+		SetIgnoreFriendlyFire	(ME,true);
+		SetIsShotRadius			(ME,isShotRadius);*/
+		SetEntropyMood			(ME,mood);
+		SetCurMood				(ME,mood);
+		/*SetSkillLevel			(ME,piloting,gunnery,eliteLevel);
+		SetAttackThrottle		(ME,attackThrottle);*/
+		
+		if (AmPlane) then
+			SetAttackThrottle	(ME,100);
+		else
+			if (SlowDown) then
+				SetAttackThrottle	(ME,AttackThrottle);
+			endif;
+		endif;
+		
+		if (PowerDown) then
+			Shutdown(me);
+		endif;
+
+		if (ToHell) then
+			GetLocation(me,mynav);
+			Shutdown(me);
+			TeleporttoHell(me);
+		endif;
+		
+		if (RadarOff) then
+			SetSensorVisibility(me,false);
+			Visible = False;
+		endif;
+		
+		trans Lobby;        
+
+endstate;			
+
+state Lobby;
+	code
+
+		if (MyGroup==1) then		// Nav Alpha 'Mechs
+			if (IsWithin(PlayerMech,me,800)) then
+				Startup(me);
+				trans GoToPlayer;
+				//trans Clan;
+			else
+				if (IsShot(GroupObjectID(21))) then
+					Startup(me);
+					trans GoToPlayer;
+				endif;
+			endif;
+		endif;
+		
+		if (MyGroup==2) then		// Scout 'Mechs at start
+			trans GoToPlayer;
+		endif;
+
+		if (MyGroup==3) then		// Lagoon 'Mechs
+			if (IsWithin(PlayerMech,me,750)) then
+				Startup(me);
+				trans GoToPlayer;
+				//trans Clan;
+			else
+				if (CanSee(me,PlayerMech)) then
+					Startup(me);
+					trans GoToPlayer;
+				else
+					if (IsShot(GroupObjectID(22))) then
+						Startup(me);
+						trans GoToPlayer;
+					endif;
+				endif;
+			endif;
+		endif;
+		
+		if (MyGroup==4) then		// Delta 'Mechs
+			if (IsWithin(PlayerMech,ena_nav_delta,600)) then
+				Startup(me);
+				trans GoToPlayer;
+			else
+				if (IsShot(GroupObjectID(23))) then
+					Startup(me);
+					trans GoToPlayer;
+				endif;
+			endif;
+		endif;
+		
+		if (MyGroup==5) then
+			if (IsWithin(PlayerMech,me,1000)) then
+				Startup(me);
+				trans GoToPlayer;
+			else
+				if (IsShot(me)) then
+					Startup(me);
+					trans GoToPlayer;
+				endif;
+			endif;
+		endif;
+		
+endstate;
+
+state Clan;
+	code
+
+		OrderMovetoObject(MyEnemy,speed);
+
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			//SetTarget(me,MyEnemy);
+			trans Attack;
+		endif;
+
+endstate;
+
+//------------------------------------------------------------------
+//	FollowPathState: follow our path, but keep an eye out for enemies
+//------------------------------------------------------------------
+
+state FollowPathState;
+	code
+
+		OrderMoveResumePatrol(path,speed,movetype,true,true);
+		//OrderFormationMove(GroupObjectID(GroupNumber),path,speed,movetype,formationtype,formationdensity,false);
+
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			trans Attack;
+		endif;
+
+endstate;
+
+state GoToLocation;
+	code
+
+		OrderMovetoObject(MyObject,speed);
+
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			trans Attack;
+		endif;
+		
+endstate;
+
+state GoToPlayer;
+	code
+
+		OrderMovetoObject(PlayerMech,100);
+		
+		if (RadarOff) then
+			if (IsWithin(me,PlayerMech,MyDist)) then
+				SetSensorVisibility(me,TRUE);
+				Visible = True;
+			else
+				SetSensorVisibility(me,FALSE);
+				Visible = False;
+			endif;
+		endif;
+		
+		if (FindEnemy(AttackRange,FindTypes + FT_UNARMED + FT_BUILDING)) then
+			trans Attack;
+		endif;
+
+endstate;
+
+state Attack;
+	code
+
+		/* if (not FirstContact) then
+			FirstContact = True;		// As soon as any enemy attacks a PC they warn their base
+		endif; */
+		
+		//SetTarget(me,MyEnemy);
+		
+		if (LeaveAttackState(WithdrawRange)) then
+			trans Clan;
+		endif;
+		
+		if (MyTactic == 0) then
+			OrderAttack(true);
+		else
+			OrderAttackTactic(MyTactic,true);
+		endif;
+
+		/* if (MyTactic == TACTIC_REAR) then		// If you are the last of Clan MacLeod then stop hitting the rear
+			if (GroupSize(GroupObjectID(GroupNumber)) == 1) then
+				MyTactic = 0;
+			endif;
+		endif; */
+		
+		if (RadarOff) then		// This is to mimic your radar being turned off
+			if (IsWithin(me,PlayerMech,MyDist)) then
+				SetSensorVisibility(me,TRUE);
+				Visible = True;
+				RadarOff = False;
+			else
+				SetSensorVisibility(me,FALSE);
+				Visible = False;
+			endif;
+		endif;
+			
+endstate;
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+		if (deathSound <> -1) then	
+			PlaySoundOnce(deathSound);
+		endif;		
+
+		orderDie;
+
+endstate;
+
+
+endfsm.

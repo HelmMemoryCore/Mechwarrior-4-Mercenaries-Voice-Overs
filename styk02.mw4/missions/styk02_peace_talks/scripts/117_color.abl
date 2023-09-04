@@ -1,0 +1,91 @@
+//*********************************************************************************
+
+fsm Styk02_Color : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	Integer		speed;						// speed at which the units travel
+		static	Integer		memInt9;
+		static boolean		shotbyTest;
+ 
+function Init;
+	code
+	
+		speed = 55;
+		memInt9 = getMemoryInteger(me,9);
+		switch ( memint9)
+			case 1:
+				unitPath = epa_CarPath01;
+			endcase;
+			case 2:
+				unitPath = epa_CarPath02;
+			endcase;
+			case 3:
+				unitPath = epa_CarPath03;
+			endcase;
+			case 4:
+				unitPath = No_Unit;
+			endcase;
+		endswitch;
+		
+		shotByTest = false;
+		
+endfunction;
+
+state startState;
+	code
+		
+	trans sit;
+		
+endstate;
+
+state sit;
+
+	code
+	
+	if (not UnitPath == No_Unit) then
+		OrderMoveResumePatrol(unitPath, speed, MOVE_CIRCLE, true, false);
+	endif;
+	
+	if isDead(me) then
+		trans deadState;
+	endif;
+	
+endstate;
+
+state deadState;
+	code
+		
+		if (not shotByTest) then
+			if (WhoDestroyed(me) == playerMech) then
+				infamy = infamy + 1;
+				infamyTrigger = infamyTrigger + 1;
+			endif;
+			shotByTest = true;
+		endif;
+
+endstate;
+
+endfsm.

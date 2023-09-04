@@ -1,0 +1,106 @@
+//*********************************************************************************
+
+fsm fox : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		
+		static boolean			pathEndReached;
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static integer 			speed;
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 10;						// 1 - 10
+		pathEndReached 			= false;
+		unitPath 				= epa_FoxApproachPath;
+		speed					= 50;
+		GetLocation(ena_foxSpawn, spawnPoint);
+
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	clearMoveOrder(me);
+	shutDown(me);
+	trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	
+		if obj4 then
+			teleport(me, spawnpoint);
+			startup(me);
+			trans sit;
+		endif;
+		
+endstate;		
+
+state sit;
+	code
+		if pathEndReached then
+			if unitPath == epa_FoxApproachPath then
+				obj3 = true;
+			endif;
+			unitPath = epa_FoxLeavePath;
+			pathEndReached = false;
+		else
+			//if OrderMoveResumePatrolRigid(unitPath, speed, MOVE_NOCYCLE, true, false) then
+			if OrderMoveResumePatrol(unitPath, speed, MOVE_NOCYCLE, true, false) then
+				pathEndReached = true;
+			endif;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if IsWithin(me, ena_foxhide, 50) then
+			shutdown(me);
+			teleport(me, spawnpoint);
+			startup(me);
+		endif;
+		
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

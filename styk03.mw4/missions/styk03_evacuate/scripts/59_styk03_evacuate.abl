@@ -1,0 +1,571 @@
+
+//*********************************************************************************
+
+fsm Styk03_Evacuate : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi> // <-- mektek
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+			
+		eternal integer     playermech;
+		
+        static integer      checkrange;         // How far from the Nav Point you have to be                                            
+                                                //
+        eternal boolean     obj1;               // This indicates whether Obj 1 was completed
+        eternal boolean     obj2;               // This indicates whether Obj 2 was completed
+        eternal boolean     obj3;               // This indicates whether Obj 3 was completed
+        eternal boolean     obj4;               // This indicates whether Obj 4 was completed
+        eternal boolean     obj5;               // This indicates whether Obj 5 was completed
+		
+		static integer	    cinema_cut;
+        static integer      wimpy;              // For the easy setting
+		
+        eternal boolean     escortHeli;	       	// Did this heli survive the last mission?
+		
+		static ObjectID		currentNavPoint;	   	// Location of the current Nav Point
+		static Integer		currentNavNum;	 	  	// Keeps track of the current Nav point.
+		
+		eternal ObjectID	theConvoy;
+		
+		static boolean FirstAlphaVO;
+		static boolean TakingFireVO;
+		static boolean FirstBetaVO;
+		static boolean SecondBetaVO;
+		
+		eternal Integer DavionRating;
+		eternal Integer SteinerRating;
+		eternal Integer Nobility;
+		eternal Integer Infamy;
+		
+		static boolean AlphaReached;
+		static boolean BetaReached;
+		static boolean GammaReached;
+		
+		static 	integer Group1Size;
+		
+//------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	code
+
+		    playermech = getplayervehicle(epl_player0);	
+		if (GetLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(1));
+		endif;
+		if (GetLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(2));
+		endif;
+		if (GetLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(1) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(1));
+		endif;
+		if (GetSecondaryLancemate(2) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(2));
+		endif;
+		if (GetSecondaryLancemate(3) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(3));
+		endif;
+		if (GetSecondaryLancemate(4) <> NO_UNIT) then
+			GroupAddObject(GroupObjectId(5),GetSecondaryLancemate(4));
+		endif;
+		Group1Size = GroupSize(GroupObjectId(5));
+ 
+            // Nav Alpha enemies           
+            GroupAddObject(GroupObjectId(10),eve_AlphaTank01);
+            GroupAddObject(GroupObjectId(10),eve_AlphaTank02);
+            GroupAddObject(GroupObjectId(10),eve_AlphaTank03);
+            GroupAddObject(GroupObjectId(10),eve_AlphaMech);
+            SetGroupAI(GroupObjectID(10),GROUPAI_RADIOSQUAD);
+
+            // Nav Beta enemies           
+            GroupAddObject(GroupObjectId(20),eve_BetaTank02);
+            GroupAddObject(GroupObjectId(20),eve_BetaTank03);
+            GroupAddObject(GroupObjectId(20),eve_BetaTank04);
+            GroupAddObject(GroupObjectId(20),eve_BetaMech);
+            SetGroupAI(GroupObjectID(20),GROUPAI_RADIOSQUAD);
+
+            // Nav Gamma Attack Enemies          
+            GroupAddObject(GroupObjectId(30),eve_AttackMech01);
+            GroupAddObject(GroupObjectId(30),eve_AttackMech02);
+            GroupAddObject(GroupObjectId(30),eve_AttackMech03);
+            SetGroupAI(GroupObjectID(30),GROUPAI_RADIOSQUAD);
+ 		
+            // Street Forces Between alpha and beta
+            GroupAddObject(GroupObjectId(40),eve_StreetTurretControl);
+            GroupAddObject(GroupObjectId(40),etu_StreetTurret01);
+            GroupAddObject(GroupObjectId(40),etu_StreetTurret02);
+            GroupAddObject(GroupObjectId(40),eve_StreetMech01);
+            SetGroupAI(GroupObjectID(40),GROUPAI_RADIOSQUAD);
+
+            // Convoy
+            GroupAddObject(GroupObjectId(15),eve_Convoy01);
+            GroupAddObject(GroupObjectId(15),eve_Convoy02);
+            GroupAddObject(GroupObjectId(15),eve_Convoy03);
+            GroupAddObject(GroupObjectId(15),eve_Convoy04);
+            GroupAddObject(GroupObjectId(15),eve_Convoy05);
+			theConvoy = GroupObjectID(15);
+            // Convoy key members
+            GroupAddObject(GroupObjectId(16),eve_Convoy02);
+            GroupAddObject(GroupObjectId(16),eve_Convoy03);
+            GroupAddObject(GroupObjectId(16),eve_Convoy04);
+            SetGroupAI(GroupObjectID(16),GROUPAI_RADIOSQUAD);
+			
+    		cinema_cut = 0; 						
+ 
+			// Nav point managment stuff
+			currentNavPoint = ena_Nav_Alpha;
+			currentNavNum = 1;
+			checkRange = 100;
+		
+		DavionRating = GetPreviousDavionFactionRating;
+		Davionrating = DavionRating;
+		SteinerRating = GetPreviousSteinerFactionRating;
+		SteinerRating = SteinerRating;
+		Nobility = GetPreviousNobility;
+		nobility = nobility + 15;
+		Infamy = GetPreviousInfamy;
+		infamy = infamy - 3;
+		
+
+endfunction;
+		#include_ <content\ABLScripts\Katie\katie_script.abi> // <-- mektek
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state StartState;
+
+	code	
+
+        setradarnav(ena_Nav_Alpha,1);
+        setradarnav(ena_Nav_Beta,2);
+        setradarnav(ena_Nav_Gamma,3);
+
+        revealnavpoint(ena_Nav_Alpha);
+        setnavpoint(ena_Nav_Alpha);
+        revealnavpoint(ena_Nav_Beta);
+        revealnavpoint(ena_Nav_Gamma);
+
+        revealobjective(eob_objective01);
+        revealobjective(eob_objective02);
+		revealobjective(eob_objective03);
+		revealobjective(eob_objective04);
+		
+		//Determine which Helis are present
+		escortHeli 	= GetEventFlag("S02_PE");
+		if ( not escortHeli ) then
+			TeleportToHell(eve_Presidential_Escort);
+		endif;
+		
+		//Salvage Chance
+		/* MekTek: Shark removed these and replaced them with Katie calls
+		SetKillSalvageChance(eve_AttackMech02, 100);	//Thanatos
+		SetKillSalvageChance(eve_AttackMech01, 50);		//Catapult
+		SetKillSalvageChance(eve_AttackMech03, 50);		//Catapult
+		*/
+		
+		//Intro VO
+		PlayVoiceOverOnce("VO\Styk\MI3\Intro1", talker_AND);
+		if (Group1Size > 0) then
+			PlayVoiceOverOnce("VO\Styk\MI3\Intro2", talker_SPE);
+			PlayLanceMateSound("vo\generic\MercNoPay",1);
+			PlayVoiceOverOnce("VO\Styk\MI3\Intro3", talker_SPE);
+			PlayVoiceOverOnce("VO\Styk\MI3\Intro4", talker_CAS);
+			PlayVoiceOverOnce("VO\Styk\MI3\BeSharp", talker_SPE);
+			PlayLanceMateSound("vo\generic\Roger",1);
+		endif;
+		PlayVoiceOverOnce("VO\Styk\MI3\ConvoyRolling", talker_AND);
+		StartMusic("Music\skittersprint",0.0,3.0,40);
+	    
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+	
+	//Music
+	if (not ismusicplaying) then
+		StartMusic("Music\urbanambloop",0.0,3.0,40);
+	endif;
+	
+	//VO
+	if (not FirstAlphaVO) then
+		if isWithin(theConvoy, groupObjectID(10), 600) then
+			PlayVoiceOverOnce("VO\Styk\MI3\EngagingEnemy", talker_AND);
+			firstAlphaVO = true;
+		endif;
+	endif;
+	if (not takingFireVO) then
+		if IsShot(groupObjectID(16)) then
+			PlayVoiceOverOnce("VO\Styk\MI3\TakingFireNeedSupport", talker_AND);
+			takingFireVO = true;
+		endif;
+	endif;
+	if (not firstBetaVO) then
+		if IsWithin(playerMech, GroupObjectID(20), 600) then
+			PlayVoiceOverOnce("VO\Styk\MI3\MoreAtBeta", talker_SPE);
+			firstBetaVO = true;
+		endif;
+	endif;
+	if (not secondBetaVO) then
+		if IsWithin(playerMech, GroupObjectID(20), 600) then
+			PlayVoiceOverOnce("VO\Styk\MI3\DropShipsSittingDucks", talker_CAS);
+			PlayVoiceOverOnce("VO\Styk\MI3\BadToWorse", talker_SPE);
+			PlayVoiceOverOnce("VO\Styk\MI3\FinishedLoading", talker_CAS);
+			PlayVoiceOverOnce("VO\Styk\MI3\ReadyToBurn", talker_CAS);
+			PlayVoiceOverOnce("VO\Styk\MI3\DontRemindMe", talker_SPE);
+			revealObjective(eob_objective05);
+			setnavpoint(ena_Nav_Gamma);
+			secondBetaVO = true;
+		endif;
+	endif;
+	
+		// Betty speaks when reaching Nav Point
+		if (not alphareached) then
+			if (isnavrevealed(ena_nav_alpha)) then
+				if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+					playvoiceover("VO\generic\navalpha",talker_Bet);
+					alphareached = true;
+					setnavpoint(ena_nav_beta);
+				endif;
+			endif;
+		endif;
+		if (not betareached) then
+			if (isnavrevealed(ena_nav_beta)) then
+				if (iswithin(playermech,ena_nav_beta,checkrange)) then
+					playvoiceover("VO\generic\navbeta",talker_Bet);
+					betareached = true;
+				endif;
+			endif;
+		endif;
+		if (not gammareached) then
+			if (isnavrevealed(ena_nav_gamma)) then
+				if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+					playvoiceover("VO\generic\navgamma",talker_Bet);
+					gammareached = true;
+				endif;
+			endif;
+		endif;
+	//VO end
+			
+	
+	
+	// Nav tracking stuff
+	if (not obj4) then
+		if ( isWithin ( theConvoy, currentNavPoint, checkRange)) then
+			switch ( currentNavNum )
+				case 1:
+					PlayVoiceOverOnce("VO\Styk\MI3\ConvoyAtAlpha", talker_AND);
+					setnavpoint(ena_Nav_Beta);
+					currentNavPoint = ena_Nav_Beta;
+					SuccessObjective(eob_Objective02);
+					obj2 = true;
+				endcase;
+				case 2:
+					PlayVoiceOverOnce("VO\Styk\MI3\ConvoyPassedBeta", talker_AND);
+					setnavpoint(ena_Nav_Gamma);
+					currentNavPoint = ena_Nav_Gamma;
+					SuccessObjective(eob_Objective03);
+					obj3 = true;
+					theConvoy = GroupObjectID(16);	//Key convoy members must reach the spaceport
+				endcase;
+				case 3:
+					PlayVoiceOverOnce("VO\Styk\MI3\thanksSpectre", talker_AND);
+					SuccessObjective(eob_Objective04);
+					//revealObjective(eob_objective05);
+					obj4 = true;
+				endcase;
+			endswitch;
+			currentNavNum = currentNavNum + 1;
+		endif;
+	else	//Convoy is at the spaceport
+		if GroupAllDead(GroupObjectID(30)) then
+			SuccessObjective(eob_objective05);
+			SuccessObjective(eob_objective01);
+			resetTimer(21);
+			/////////////////////
+			// MISSION SALVAGE //
+			/////////////////////
+			Katie(eve_AttackMech01,50);
+			Katie(eve_AttackMech02,40);
+			Katie(eve_AttackMech03,30);
+
+			Katie(eve_AlphaMech,30);
+			Katie(eve_BetaMech,30);
+			Katie(eve_StreetMech01,50);
+
+			cinema_cut = 0;
+			trans won;
+		endif;
+	endif;
+		
+	// Hrothgar Dead
+	if IsDead(eve_Hrothgar) then
+		FailObjective(eob_objective05);
+		resetTimer(21);
+		cinema_cut = 0;
+		trans lostConvoy;
+	endif;
+	
+	//Fail mission if any limos die
+	if ( groupNumDead(GroupObjectId(16)) > 0 ) then
+		FailObjective(eob_objective01);
+		resetTimer(21);
+		cinema_cut = 0;
+		trans lostConvoy;
+	endif;
+	
+	// Fail mission if player dies
+	if ( isdead(playerMech) ) then
+		failObjectiveall(9);
+		resetTimer(21);
+		cinema_cut = 0;
+		trans lostDead;
+	endif;
+		
+endstate;
+
+// Cinema here
+
+state opening;
+	code
+
+		if cinemaSkip then
+			CinemaEnd;
+			SetCompositingEnabled(true);			
+			playerAI(playermech, false);
+			killVoiceOvers;
+			trans sit;
+		endif;
+		
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				FadeToBlack(0.0);
+				Fadefromblack(2.0);
+				Targetfollowobject(playerMech);
+				camerafollowobject(playerMech);
+				targetoffset(130.0, 4.0, 0.0, 0.0, false);
+                Cameraoffset(130.0, 4.0, -300.0, 0.0, false);       
+                Cameraoffset(130.0, 4.0, -50.0, 5.0, false);       
+				resetTimer(21);
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 5) then
+					targetoffset(0.0, 4.0, 0.0, 5.0, false);
+					Cameraoffset(130.0, 4.0, 0.0, 5.0, false);       
+					resetTimer(21);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				if TimeGreater(21, 7) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 3:
+				playerAI(playermech, false);
+				CinemaEnd;
+				SetCompositingEnabled(true);
+				trans sit;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state won;
+	code
+		
+		switch cinema_cut
+			case 0:
+				PlayVoiceOverOnce("VO\Styk\MI3\Close1", talker_SPE);
+				if (Group1Size > 0) then
+					PlayLanceMateSound("vo\generic\Agree",1);
+				else
+					PlayVoiceOver("VO\Generic\copy2", talker_Cas);
+				endif;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericVictory1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericVictory2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut +1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+		
+			case 2:	
+				//EndMission(true, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(playermech, playermech, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+								
+				SetCurrentInfamy(Infamy);
+				SetCurrentNobility(Nobility);
+				SetCurrentDavionFactionRating(DavionRating);
+				SetCurrentSteinerFactionrating(SteinerRating);
+				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true, 3);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostConvoy;
+	var
+		static ObjectID DeadConvoy;
+	code
+		
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut +1;
+			endcase;
+			case 1:
+				if TimeGreater(21, 5) then
+					cinema_cut = cinema_cut + 1;
+					if IsDead(eve_convoy02) then
+						DeadConvoy = eve_Convoy02;
+					else
+						if IsDead(eve_convoy03) then
+							DeadConvoy = eve_Convoy03;
+						else
+							if IsDead(eve_convoy04) then
+                                DeadConvoy = eve_Convoy04;
+							else
+                                DeadConvoy = eve_hrothgar;
+							endif;
+						endif;
+					endif;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(DeadConvoy, DeadConvoy, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostDead;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,3)
+					case 1:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:	
+				EndMission(false, 10);
+				//SetActiveCamera(eca_CameraShip);
+				//PullOutCamera(playermech, playermech, 250.0, 10.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+endfsm.

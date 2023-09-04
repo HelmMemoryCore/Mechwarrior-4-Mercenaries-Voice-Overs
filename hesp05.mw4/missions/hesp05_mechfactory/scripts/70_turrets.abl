@@ -1,0 +1,171 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+
+fsm turrets : integer;
+
+
+//------------------------------------------------------------------
+
+// Generic_Turret:
+//   This shoots anything that comes near, but never moves.
+//   It can be used for turrets.
+
+//------------------------------------------------------------------
+
+
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		static integer			groupNumber;		// The group number the turrets are in.
+		static integer			memInt9;			// holds the value of memory Integer 9
+		static integer			attackRange;		// At what range do I start shooting?
+		static integer			withdrawRange;		// At what range do I STOP attacking?
+		static ObjectID			MyTower;			// My control tower: if destroyed, I stop firing
+		static integer			skillLevel;			// 1-10, the new skill level variable
+		static integer			findTypes;
+
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackrange * 3 / 2;
+		findTypes = FT_DEFAULT;
+
+		groupNumber				= 10;						// The Group the turrets are in
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+
+		switch (memInt9)
+			Case 1:
+				MyTower = ebu_TurretControl01;
+				groupNumber = 20;
+			endcase;
+			Case 2:
+				MyTower = eve_TurretControl02;
+				groupNumber = 20;
+			endcase;
+			Case 3:
+				MyTower = eve_TurretControl03;
+				groupNumber = 10;
+			endcase;
+		endswitch;
+		
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+		AssignSkill(skillLevel);
+		trans WaitState; 	
+endstate;			
+
+//------------------------------------------------------------------
+//	WaitState: wait for someone to come near
+//------------------------------------------------------------------
+
+state WaitState;
+	code
+		if (FindEnemy(attackRange,findTypes)) then
+			trans AttackState;
+		endif;
+
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if (MyTower <> NO_UNIT) then
+			if ( IsDead(MyTower) ) then
+				trans TowerGoneState;
+			endif;
+		endif;
+		
+		if isDead(me) then
+			trans deadstate;
+		endif;
+
+		OrderMoveLookOut;
+endstate;
+
+//------------------------------------------------------------------
+//	AttackState: let's see what's around, and destroy it
+//------------------------------------------------------------------
+
+state AttackState;
+	code
+		if (LeaveAttackState(withdrawRange)) then
+			OrderStopAttacking;
+			SetTarget(ME,NO_UNIT);
+			trans WaitState;
+		endif;
+
+		if (MyTower <> NO_UNIT) then
+			if ( IsDead(MyTower) ) then
+				trans TowerGoneState;
+			endif;
+		endif;
+
+		if isDead(me) then
+			trans deadstate;
+		endif;
+		
+		OrderAttackTactic(TACTIC_SHOOT_ONLY,true);
+
+endstate;
+
+//------------------------------------------------------------------
+//	TowerGoneState: my control tower is destroyed; I can do nothing
+//------------------------------------------------------------------
+
+state TowerGoneState;
+	code
+		SetTarget(ME,NO_UNIT);
+		OrderStopAttacking;
+		ClearMoveOrder(ME);
+		SetTargetDesirability(ME,-1);
+		SetSensorVisibility(ME,FALSE);
+		
+		GroupRemoveObject(GroupObjectID(groupNumber), me);//Comment out if turret should remain in group when shut down
+		
+		trans deadstate;
+		
+endstate;
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+	
+endstate;
+
+endfsm.

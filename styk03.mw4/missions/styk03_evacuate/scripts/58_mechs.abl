@@ -1,0 +1,113 @@
+//*********************************************************************************
+
+fsm Styk03_Mechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+
+		static LocPoint			leashPoint;
+		static Integer			memInt9;
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;
+
+		memInt9 = getMemoryInteger(me,9);	// Initialize spawnPoint and hide attackers.
+		switch (memInt9)
+			case 1:
+				getLocation(ena_Nav_Alpha, leashPoint);
+			endcase;
+			case 2:
+				getLocation(ena_StreetNav01, leashPoint);
+			endcase;
+			case 3:
+				getLocation(ena_StreetNav02, leashPoint);
+			endcase;
+		endswitch;
+
+endfunction;
+		
+state StartState;
+
+	code
+		
+		AssignSkill(skillLevel);
+		SetCombatLeash (me, leashPoint, attackRange/2);
+        trans sit; 	
+		
+endstate;			
+
+state sit;
+	code
+		
+		orderMoveLookout;
+		
+		if FindEnemy (attackRange, FT_DEFAULT + FT_UNARMED) then
+			trans AttackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if ( isDead (me) ) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if ( isDead (me) ) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

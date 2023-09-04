@@ -1,0 +1,181 @@
+//*********************************************************************************
+
+fsm Friendlies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static LocPoint			leashPoint;
+
+		static integer			speed;			//path speed
+		
+		static ObjectID			TargetTower;
+		static ObjectID			trigger01;
+		static ObjectID			trigger02;
+		static boolean			towerGone;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		pathEndReached 			= false;
+		speed					= 200;
+		
+		unitPath				= epa_FriendlyPath;
+		TargetTower				= ebu_turretControl02; 
+		trigger01				= ena_trigger01;
+		trigger02				= ena_trigger02;
+		towerGone 				= false;
+		GetLocation(ena_SpawnPoint01, leashPoint);
+					
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	trans waitState;
+
+endstate;
+
+state waitState;
+	
+	code
+		if startTheFun then
+			trans sit;
+		endif;
+	
+endstate;
+
+state sit;
+	code
+		if (not pathEndReached) then
+			if OrderMoveResumePatrol(unitPath, speed, MOVE_NOCYCLE, true, False) then
+				pathEndReached = true;
+				clearMoveOrder(me);
+				teleportToHell(me);
+				trans deadState;
+			endif;
+		endif;
+		
+		if FindEnemy(attackRange, FT_DEFAULT + FT_BUILDING) then
+			trans attackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if (not towerGone) then
+			if IsWithin(me, trigger01, 100) then
+				setTarget(me, TargetTower);
+				SetAutoTargeting(me, false);
+				AssignSkill(10);
+				trans AttackTowerState;
+			endif;
+		else
+			if (not follow) then
+				if IsWithin(me, trigger02, 100) then
+					follow = true;
+				endif;
+			endif;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, False);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if (not towerGone) then
+			if IsWithin(me, trigger01, 100) then
+				setTarget(me, TargetTower);
+				SetAutoTargeting(me, false);
+				AssignSkill(10);
+				trans AttackTowerState;
+			endif;
+		else
+			if (not follow) then
+				if IsWithin(me, trigger02, 100) then
+					follow = true;
+				endif;
+			endif;
+		endif;
+			
+endstate;
+
+state AttackTowerState;
+
+	code
+		
+		setTarget(me, TargetTower);
+		if IsDead(TargetTower) then
+			orderStopAttacking;
+			SetAutoTargeting(me, true);
+			towerGone = true;
+			AssignSkill(skillLevel);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, false);
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

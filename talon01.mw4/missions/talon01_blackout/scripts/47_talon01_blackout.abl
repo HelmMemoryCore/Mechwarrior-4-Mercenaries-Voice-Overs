@@ -1,0 +1,614 @@
+//*********************************************************************************
+
+fsm Talon01_Blackout : integer;
+
+//------------------------------------------------------------------
+//
+//	 Constant Definitions
+//
+//------------------------------------------------------------------
+	 const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+		#include_ <content\ABLScripts\Katie\katie_consts.abi> // <-- mektek
+//------------------------------------------------------------------
+//
+//	 Type Definitions
+//
+//------------------------------------------------------------------
+	 type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//	 Variable Declarations
+//
+//------------------------------------------------------------------
+	  var
+
+		eternal integer		playermech;			// This is the variable for the player's 'Mech
+			
+		// Standard Nav and Objective Variables
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+												//
+		static boolean		alpharevealed;		// Nav Alpha is shown
+		static boolean		betarevealed;		// Nav Beta is shown
+		static boolean		gammarevealed;		// Nav Gamma is shown
+		static boolean		deltarevealed;		// Nav Delta is shown
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+												//
+		eternal boolean		obj1;				// This indicates whether Objective 1 was completed
+		eternal boolean		obj2;				// This indicates whether Objective 2 was completed
+		eternal boolean		obj3;				// This indicates whether Objective 3 was completed
+		eternal boolean		obj4;				// This indicates whether Objective 4 was completed
+		eternal boolean		obj5;				// This indicates whether Objective 5 was completed
+												//
+		static boolean		obj1revealed;		// This indicates that Objective 1 has been revealed
+		static boolean		obj2revealed;		// This indicates that Objective 2 has been revealed
+		static boolean		obj3revealed;		// This indicates that Objective 3 has been revealed
+		static boolean		obj4revealed;		// This indicates that Objective 4 has been revealed
+		static boolean		obj5revealed;		// This indicates that Objective 5 has been revealed
+		//	
+		
+		static integer		cinema_cut;			// This variable keeps track of what scene a cinema is on.
+		static locpoint		temploc;			// Used for commands that need objects converted to locpoint format
+		static boolean		loser;				// You have lost the mission
+ 		eternal integer 	DavionRating;		// This is your Davion rating
+		eternal integer 	SteinerRating;		// This is your Steiner rating
+		eternal integer 	Nobility;			// This is your Nobility rating
+		eternal integer 	Infamy;				// This is your Infamy rating
+ 
+		// Trigger States
+		eternal boolean		RunAway;			// Intro movie retreating 'Mech
+		eternal boolean		GameOn;				// 
+		static integer		SacHP;				// Current HP of the Sacrifice unit
+		eternal boolean		FirstContact;		// Once there is first contact then the enemy will send in some forces to investigate
+		eternal boolean		BlackOut;			// Toggled true when the BlackOut is over
+		eternal boolean		VehicleEscaped;		// The vehicles fled
+		eternal boolean		GoGoGo;				// Civilian vehicles flee
+		static integer		Spotter;			// Who is your lancemate that will spot stuff
+		
+//------------------------------------------------------------------
+//
+//	 Init Function	(automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+			playermech = getplayervehicle(epl_player0);
+
+			if (GetLancemate(3)<>NO_UNIT) then
+				GroupAddObject(GroupObjectID(1),GetLancemate(3));
+				Spotter = GetLancemate(3);
+			endif;
+
+			if (GetLancemate(2)<>NO_UNIT) then
+				GroupAddObject(GroupObjectID(1),GetLancemate(2));
+				Spotter = GetLancemate(2);
+			endif;
+			
+			if (GetLancemate(1)<>NO_UNIT) then
+				GroupAddObject(GroupObjectID(1),GetLancemate(1));
+				Spotter = GetLancemate(1);
+			endif;
+
+			// 10 - Sacrifice Group (Governor)
+			/*GroupAddObject(GroupObjectID(10),eve_sacrifice02);
+			GetLocation(ena_leash,temploc);
+			SetCombatLeash(GroupObjectID(10),temploc,250);*/
+
+			// 20 - Tanks at Beginning
+			GroupAddObject(GroupObjectID(20),eve_tank01);
+			GroupAddObject(GroupObjectID(20),eve_tank02);
+			GroupAddObject(GroupObjectID(20),eve_tank03);
+			GroupAddObject(GroupObjectID(20),eve_tank04);
+			GroupAddObject(GroupObjectID(20),eve_tank05);
+			GroupAddObject(GroupObjectID(20),eve_tank06);
+			SetGroupAI(GroupObjectID(20),GROUPAI_MOODSQUAD);
+
+			// 21 - ComStar 'Mechs guarding facility
+			GroupAddObject(GroupObjectID(21),eve_innerguard01);
+			GroupAddObject(GroupObjectID(21),eve_innerguard02);
+			GroupAddObject(GroupObjectID(21),eve_innerguard03);
+			SetGroupAI(GroupObjectID(21),GROUPAI_MOODSQUAD);
+
+			// 22 - Forward ComStar 'Mechs
+			GroupAddObject(GroupObjectID(22),eve_forward01);
+			GroupAddObject(GroupObjectID(22),eve_forward02);
+			SetGroupAI(GroupObjectID(22),GROUPAI_MOODSQUAD);
+			
+			// 23 - ComStar reinforcements (Placeholder if added)
+			GroupAddObject(GroupObjectID(23),eve_innerguard01);
+			
+			// 24 - Fleeing Vehicles & Buildings
+			GroupAddObject(GroupObjectID(24),eve_flee01);
+			GroupAddObject(GroupObjectID(24),eve_flee02);
+			GroupAddObject(GroupObjectID(24),eve_flee03);
+			GroupAddObject(GroupObjectID(24),eve_flee04);
+			GroupAddObject(GroupObjectID(24),ebu_monster01);
+			GroupAddObject(GroupObjectID(24),ebu_monster02);
+			GroupAddObject(GroupObjectID(24),ebu_monster03);
+			GroupAddObject(GroupObjectID(24),ebu_monster04);
+			GroupAddObject(GroupObjectID(24),ebu_monster05);
+
+			cinema_cut = 0;
+
+			// Culturals
+			//SetTarget(ede_example2,eve_example3);
+		
+endfunction;
+		#include_ <content\ABLScripts\Katie\katie_script.abi> // <-- mektek
+//------------------------------------------------------------------
+//
+//	 Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+/* Mektek: Shark removed these and replaced them with katie calls
+			SetKillSalvageChance(eve_innerguard01,50);	// Black Knight
+			SetKillSalvageChance(eve_innerguard02,50);	// Catapult
+			SetKillSalvageChance(eve_innerguard03,100);	// Awesome
+*/
+		// These are your MetaMission variables, second part is how this mission effects your ratings
+			DavionRating 	= GetPreviousDavionFactionRating;
+			SteinerRating 	= GetPreviousSteinerFactionRating;
+			Nobility 		= GetPreviousNobility;
+			Infamy 			= GetPreviousInfamy;
+			
+			DavionRating	= DavionRating + 0;
+			SteinerRating	= SteinerRating + 9;
+			Nobility		= Nobility + 0;
+			Infamy			= Infamy + 11;
+		// 
+		
+		SetRadarNav(ena_Nav_Alpha,1);
+		SetRadarNav(ena_Nav_Beta,2);
+		SetRadarNav(ena_Nav_Gamma,3);
+		
+		RevealNavpoint(ena_Nav_Alpha);
+		RevealNavpoint(ena_Nav_Beta);
+		
+		SetNavpoint(ena_Nav_Alpha);
+		
+		SetTargetDesirability(eve_flee01,-1);
+		SetTargetDesirability(eve_flee02,-1);
+		SetTargetDesirability(eve_flee03,-1);
+		SetTargetDesirability(eve_flee04,-1);
+
+		//setsensorvisibility(eve_example4,false);
+		
+		checkrange	= 150;		// How far from a nav point before the Betty voice says you've arrived.
+
+		BlackOut	= False;		// TEMP!
+		StartMusic("Music\SneakPeek",3.0,3.5,50);
+		
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+	
+endstate;
+	
+//------------------------------------------------------------------
+//
+//	 Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+
+	if IsMusicPlaying == false then
+		StartMusic("Music\SneakPeek",3.0,3.5,50);
+	endif;
+
+// Talon 1 Specific Triggers
+	PlayEffect(ede_flare);
+	
+	if (not GetGlobalTrigger(1)) then
+		if (timegreater(1,5)) then		// Some more info from the boss
+			SetGlobalTrigger(1,true);
+			PlayVoiceOverOnce("vo\talon\mi1\MissionBriefing1",TALKER_SPE);
+			PlayVoiceOverOnce("vo\talon\mi1\MissionBriefing2",TALKER_SPE);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(2)) then
+		if (IsWithin(PlayerMech,etu_turret02,850)) then		// Close to turrets
+			SetGlobalTrigger(2,true);
+			PlayVoiceOverOnce("vo\talon\mi1\TurretsOnRidge",TALKER_SPE);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(3)) then
+		if (IsWithin(PlayerMech,GroupObjectID(20),275)) then	// Tanks in action
+			SetGlobalTrigger(3,true);
+			PlayVoiceOverOnce("vo\talon\mi1\PanzersAtAlpha",TALKER_SPE);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(4)) then
+		if (IsWithin(PlayerMech,GroupObjectID(22),500)) then		// Forward guys within range
+			SetGlobalTrigger(4,true);
+			PlayLancemateSound("VO\Generic\VisContact",1);
+			PlayVoiceOverOnce("vo\talon\mi1\HereComeMechs",TALKER_SPE);
+			PlayLancemateSound("VO\Generic\Roger",1);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(5)) then
+		if (GroupAllDead(GroupObjectID(21))) then	// Guys killed
+			if (not BetaReached) then
+				SetGlobalTrigger(5,true);
+				PlayVoiceOverOnce("vo\talon\mi1\MoveToBeta",TALKER_SPE);
+			endif;
+		endif;
+	endif;
+
+	if (not GetGlobalTrigger(6)) then
+		if (not Obj3) then
+			if (GroupNumDead(GroupObjectID(24))>1) then		// You started leaving no witnesses
+				SetGlobalTrigger(6,true);
+				PlayVoiceOverOnce("vo\talon\mi1\ZeroWitnesses",TALKER_SPE);
+				SetTargetDesirability(eve_flee01,75);
+				SetTargetDesirability(eve_flee02,75);
+				SetTargetDesirability(eve_flee03,75);
+				SetTargetDesirability(eve_flee04,75);
+			endif;
+		endif;
+	endif;
+	
+// Sound Triggers
+
+// Triggers	- Harass Strike Relief
+
+	if (not GetGlobalTrigger(7)) then
+		if (IsWithin(PlayerMech,ena_nav_beta,900)) then
+			SetGlobalTrigger(7,true);
+			StartTimer(3);		// This is the timer for the vehicles to flee
+		else
+			if (IsShot(ebu_hpg_transmitter)) then
+				SetGlobalTrigger(7,true);
+				StartTimer(3);		// This is the timer for the vehicles to flee
+			endif;
+		endif;
+	endif;
+	
+	if (not GoGoGo) then
+		if (timegreater(3,30)) then
+			GoGoGo = True;
+		endif;
+	endif;
+
+// Obj 1 - Destroy HPG Transmitter
+
+	if (not obj1) then
+		if (IsDead(ebu_HPG_Transmitter)) then
+			obj1 = true;
+			KillEffect(ede_effect);
+			SuccessObjective(eob_objective1);
+			PlayVoiceOverOnce("vo\talon\mi1\CommStatDestroyed",TALKER_SPE);
+			PlayVoiceOver("VO\OneSecond",TALKER_SPE);
+			PlayVoiceOver("VO\OneSecond",TALKER_SPE);
+			PlayVoiceOverOnce("vo\talon\mi1\CallIsSnowblind",TALKER_SPE);
+			
+			StartTimer(4);		// This is the blackout called off
+			
+			if (obj2) then
+				RevealObjective(eob_objective4);
+				RevealNavpoint(ena_Nav_Gamma);
+				SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+	
+	if (not BlackOut) then
+		if (timegreater(4,10)) then
+			BlackOut = True;
+		endif;
+	endif;
+	
+// Obj 2 - Destroy all ComStar 'Mechs
+
+	if (not obj2) then
+		if (GroupAllDead(GroupObjectID(21))) and (GroupAllDead(GroupObjectID(22))) and (GroupAllDead(GroupObjectID(23))) then
+			SuccessObjective(eob_objective2);
+			obj2 = true;
+			
+			if (obj1) then
+				if (obj3) then
+					StartTimer(2);		// You win!
+					PlayLancemateSound("VO\Generic\ObjectiveMet",1);
+					PlayVoiceOverOnce("vo\talon\mi1\MissionSuccessful",TALKER_SPE);
+				else
+					RevealObjective(eob_objective4);
+					RevealNavpoint(ena_Nav_Gamma);
+					SetNavpoint(ena_Nav_Gamma);
+				endif;
+			endif;
+		endif;
+	endif;
+	
+// Obj 3 - Destroy all ComStar forces
+
+	if (obj1) then
+		if (not obj3) then
+			if (GroupAllDead(GroupObjectID(24))) then
+				obj3 = true;
+				SuccessObjective(eob_objective3);
+				AddMissionMoneyToBalance(800000);
+				Infamy = Infamy + 10;		// Pretty despicable action
+				if (obj2) then
+					HideObjective(eob_objective4);
+					PlayLancemateSound("VO\Generic\ObjectiveMet",1);
+					PlayVoiceOverOnce("vo\talon\mi1\MissionSuccessful",TALKER_SPE);
+					StartTimer(2);		// You win!
+				endif;
+			endif;
+		endif;
+	endif;
+	
+	if (not obj3) then
+		if (VehicleEscaped) then
+			obj3 = true;
+			FailObjective(eob_objective3);
+			if (obj1) then
+				if (obj2) then
+					StartTimer(2);		// You win!
+					PlayLancemateSound("VO\Generic\ObjectiveMet",1);
+					PlayVoiceOverOnce("vo\talon\mi1\MissionSuccessful",TALKER_SPE);
+					HideObjective(eob_objective4);
+				endif;
+			endif;
+		endif;
+	endif;
+	
+// Obj 4 - Go to Dustoff point at Nav Gamma
+
+	if (not obj4) then
+		if (obj2) then
+			if (IsWithin(PlayerMech,ena_nav_gamma,150)) then
+				SuccessObjective(eob_objective4);
+				if (not Obj3) then
+					FailObjective(eob_objective3);
+				endif;
+				obj4 = true;
+				StartTimer(2);		// You are a winner
+				PlayLancemateSound("VO\Generic\ObjectiveMet",1);
+				PlayVoiceOverOnce("vo\talon\mi1\MissionSuccessful",TALKER_SPE);
+			endif;
+		endif;
+	endif;
+
+// Victory and Loss conditions
+
+	if (timegreater(2,5)) then
+		  
+		// Salvage - FAB  7/30
+		//
+		
+		SetCurrentInfamy(Infamy);
+		SetCurrentNobility(Nobility);
+		SetCurrentDavionFactionRating(DavionRating);
+		SetCurrentSteinerFactionrating(SteinerRating);
+		////////////////////
+		// MISION SALVAGE //
+		////////////////////
+		Katie(eve_innerguard01,60);
+		Katie(eve_innerguard02,50);
+		Katie(eve_innerguard03,40);
+		
+		Katie(eve_forward01,50);
+		Katie(eve_forward02,40);
+
+		if (loser) then
+			EndMission(false,5);
+			trans lost;
+		else
+			trans won;	
+		endif;
+		
+	endif;
+
+// Fail the mission when the player dies
+	if (isdead(playermech)) then
+		KillVoiceOvers;
+		switch rand(1,3)
+			case 1:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+			endcase;
+			case 2:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+			endcase;
+			case 3:
+				PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+			endcase;
+		endswitch;
+		StartMusic("Music\GenericLoss1",3.0,3.5,70);
+		endmission(false,14);
+		trans deadstate;
+	endif;
+
+// Betty speaks when reaching Nav Point
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				setnavpoint(ena_nav_beta);
+			endif;
+		endif;
+	endif;
+
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				//setnavpoint(ena_nav_gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not Gammareached) then
+		if (isnavrevealed(ena_nav_Gamma)) then
+			if (iswithin(playermech,ena_nav_Gamma,checkrange)) then
+				playvoiceover("VO\generic\navGamma",talker_Bet);
+				Gammareached = true;
+				//setnavpoint(ena_nav_gamma);
+			endif;
+		endif;
+	endif;
+	
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;	  
+
+	code
+
+		if (cinemaskip) then
+			KillVoiceOvers;	 
+			cinema_cut = 0;	 
+			KillTimer(gti_timer_21);
+			SetGlobalTrigger(0,true);
+			playerai(epl_player0,false);
+			StartTimer(1);		// This is the mission start timer
+			ResetTimer(1);
+			CinemaEnd;		  
+			SetCompositingEnabled(True);
+			revealobjective(eob_objective1);
+			RevealObjective(eob_objective2);
+			RevealObjective(eob_objective3);
+			trans sit;
+		endif;
+		
+		switch (cinema_cut)
+
+			case 0:
+				CinemaStart;
+				SetActiveCamera(eca_CameraShip);
+				
+				PlayVoiceOverOnce("vo\talon\mi1\Intro1",TALKER_SPE);
+				PlayVoiceOverOnce("vo\talon\mi1\Intro2",TALKER_CLO);
+				PlayVoiceOverOnce("vo\talon\mi1\Intro3",TALKER_SPE);
+				PlayVoiceOverOnce("vo\talon\mi1\Intro4",TALKER_CLO);
+				
+				SpinUnderCamera(PlayerMech,PlayerMech,16.0,11.0,true);
+				
+				StartMusic("Music\DFA",3.0,3.5,50);
+				
+				cinema_cut = cinema_cut + 1;
+				
+				starttimer(21);			// This is the cineractive counter.
+				resettimer(21);
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					ResetTimer(21);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;
+			
+			case 2:
+				if (timegreater(21,2)) then
+					KillVoiceOvers;
+					cinema_cut = 0;
+					KillTimer(gti_timer_21);
+					SetGlobalTrigger(0,true);
+					playerai(epl_player0,false);
+					StartTimer(1);		// This is the mission start timer
+					ResetTimer(1);
+					CinemaEnd;
+					revealobjective(eob_objective1);	// Reveal the objectives
+					RevealObjective(eob_objective2);
+					RevealObjective(eob_objective3);
+					SetCompositingEnabled(True);
+					
+					trans sit;
+				endif;
+			endcase;
+				
+		endswitch;
+	
+endstate;
+
+state won;	  
+
+	code
+		
+		if (cinemaskip) then
+			cinema_cut = 20;	
+			playerai(epl_player0,false);
+			KillVoiceOvers;
+			Endmission(true,1); 
+		endif;
+
+		switch cinema_cut
+		
+			case 0:	
+				StartMusic("Music\GenericVictory1",3.0,3.5,50);					 
+				PlayVoiceOverOnce("vo\talon\mi1\Close1",TALKER_SPE);
+				PlayVoiceOverOnce("vo\talon\mi1\Close2",TALKER_CAS);
+				SetCompositingEnabled(False);
+				CinemaStart;
+				setactivecamera (eca_cameraship);
+				Targetfollowobject(playermech);
+				Camerafollowobject(playermech);
+				Targetoffset(0.0,4.0,0.0,0.0,false);
+				Cameraoffset(-30.0,125.0,75.0,0.0,false);
+				Cameraoffset(60.0,20.0,25.0,14.0,false);
+				playerai(epl_player0,true);
+				Cinema_cut=Cinema_cut+1;
+			endcase;
+			
+			case 1:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true,2);
+					Cinema_Cut = Cinema_Cut + 1;
+				endif;
+			endcase;			
+			
+		endswitch;
+	
+endstate;
+
+state lost;
+
+		code
+		
+		switch cinema_cut
+		
+			case 0:	
+			
+			endcase;
+			
+			case 1:
+			
+			endcase;
+			
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************

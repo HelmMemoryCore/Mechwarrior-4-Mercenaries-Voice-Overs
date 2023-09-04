@@ -1,0 +1,279 @@
+
+//------------------------------------------------------------------
+// NOTE: The fsm name below MUST be changed in order for the
+// script to be considered a unique entity!
+//------------------------------------------------------------------
+
+fsm Governor : integer;
+
+
+//------------------------------------------------------------------
+// Moving AI:
+//   This script controls movers that do not go aggressive.
+//   GOVERNOR - This script controls the allies of the players.
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		
+    // Standard Mech and Vehicle variables
+        static integer			attackRange;		// At what range do I start shooting?
+		static integer			withdrawRange;		// At what range do I withdraw from combat completely?
+                                                    //
+		static integer			SkillLevel;			// Used by Assign Skill for the difficulty of an enemy
+		static integer			piloting;			// Piloting skill
+		static integer			gunnery;			// Gunnery skill/chance to hit
+		static real				minDelay;			// Minimum amount of time I will wait between shots once a weapon is reloaded
+		static real				maxDelay;			// Maximum amount of time I will wait between shots once a weapon is reloaded
+		static integer 			eliteLevel;			// Elite level.  This helps determine tactics, defensive manuevers, opportunity fire
+													// and other things.  It indicates a general level of combat experience.
+		static integer			attackThrottle;		// My attack throttle
+		static integer			mytactic;			// Combat tactic I use - 0 means standard attack
+		static integer			findTypes;			// What kind of enemies to look for
+													//
+        static integer			path;	            // What path to take.
+		static integer			myobject;			// Where this unit will head to
+        static integer			speed;	            // Speed on the path.
+		static integer			MyGroup;			// Which MemoryInteger you work for
+		static integer			GroupNumber;		// What's my group -- i.e. I will use GroupObjectID(groupNumber) to identify my group
+		static integer			formationType;		// What kind of formation am I in?
+		static integer			formationDensity;	// How densely are we packed?
+		static integer			moveType;			// How I move along the path
+                                                    //
+ 		static integer			isShotRadius;		// How far away from me will I detect an enemy shot?
+                                                    //
+		static integer 			attackSound;		// The attack sound I play when I first attack
+		static integer 			deathSound;			// The sound I play when I die
+		                                            //
+		static integer			mood;				// My default 
+		static integer			takeOffDistance;	// My take-off distance if I'm an airplane (ignored if not an airplane)
+    //
+		
+	// Generic Special Unit Functions	
+		static boolean			ToHell;				// I am going to teleport to hell
+		static boolean			PowerDown;		   	// I start off shutdown
+		static boolean			Visible;			// Am I on radar
+		static boolean			RadarOff;			// This 'Mech doesn't use radar (no missile boats!)
+		static boolean			AmPlane;			// I am a plane unit
+	// 
+		
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+		// script-specific variables
+		attackRange		= 1000;
+		withdrawRange	= AttackRange * 3 / 2;
+		path			= -1;
+		moveType		= move_nocycle;
+		speed			= 60;
+		formationType	= formation_1x12Line;
+		formationDensity= formtype_sparse;
+		findTypes		= FT_DEFAULT;
+
+		takeOffDistance	= 150;
+		visible 		= TRUE;
+
+		// driver settings
+		SkillLevel		= 4;
+		attackSound		= -1; // no sound
+		deathSound		= -1; // no sound
+		mood			= NEUTRAL_START;
+
+        MyGroup			= GetMemoryInteger(me,9);
+		switch (MyGroup)
+        
+            case 1:		// Sacrifice - Units that hold the line in opening cineractive
+				MyObject		= ena_leash;
+				SetTargetDesirability(me,-1);
+				groupNumber		= 10;
+            endcase;
+
+            case 2:		// Friends - Your governor's 'Mech buddies at start of mission
+				MyObject		= ena_leash;
+				Speed			= 150;		// They want to get there fast
+				groupNumber		= 11;
+            endcase;
+
+            case 3:		// Reinforcement from Heavy lance
+				SkillLevel		= 6;
+				PowerDown		= True;
+				MyObject		= ena_leash;
+				Speed			= 150;		// They want to get there fast
+            endcase;
+			
+        endswitch;
+
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+		AssignSkill(SkillLevel);
+		
+		/* Use a Select Statement to change these for a particular unit
+		SetFiringDelay			(ME,minDelay,maxDelay);
+		SetIgnoreFriendlyFire	(ME,true);
+		SetIsShotRadius			(ME,isShotRadius);
+		SetEntropyMood			(ME,mood);
+		SetCurMood				(ME,mood);
+		SetSkillLevel			(ME,piloting,gunnery,eliteLevel);
+		SetAttackThrottle		(ME,attackThrottle);*/
+		
+		SetAttackThrottle		(ME,100);	// It's OK if allies are fast
+		SetIsShotRadius			(ME,5);
+		
+		if (PowerDown) then
+			Shutdown(me);
+		endif;
+		
+		trans Lobby;        
+
+endstate;			
+
+state Lobby;
+	code
+
+		if (MyGroup==1) then	// Sacrifice
+			if (IsWithin(ena_nav_beta,PlayerMech,900)) then
+				SetTargetDesirability(me,50);
+				trans GoToLocation;
+			endif;
+		endif;
+		
+		if (MyGroup==2) then	// Friends at the beginning
+			if (GetGlobalTrigger(0)) then
+				trans GoToLocation;
+			endif;
+		endif;
+		
+		if (MyGroup==3) then	// Reinforcement
+			if (not IsWithin(PlayerMech,ME,1300)) then
+				Startup(ME);
+				trans GoToLocation;
+			endif;
+		endif;
+
+endstate;
+
+state GoToLocation;
+	code
+
+		if (IsWithin(me,MyObject,50)) then
+			OrderMoveLookout;
+		else
+			OrderMovetoObject(MyObject,speed);
+		endif;
+
+		if (FindEnemy(AttackRange,FindTypes)) then
+			trans Attack;
+		endif;
+
+endstate;
+
+state GoToPlayer;
+	code
+
+		OrderMovetoObject(PlayerMech,100);
+		
+		if (FindEnemy(AttackRange,FindTypes)) then
+			trans Attack;
+		endif;
+
+endstate;
+
+state Attack;
+	code
+
+		if (LeaveAttackState(WithdrawRange)) then
+			trans GoToLocation;
+		endif;
+		
+		if (MyTactic == 0) then
+			OrderAttack(true);
+		else
+			OrderAttackTactic(MyTactic,true);
+		endif;
+		
+		if (RadarOff) then		// This is to mimic your radar being turned off
+			if (IsWithin(me,PlayerMech,200)) then
+				SetSensorVisibility(me,TRUE);
+				Visible = True;
+			else
+				SetSensorVisibility(me,FALSE);
+				Visible = False;
+			endif;
+		endif;
+		
+endstate;
+
+state SirRobin;
+	code
+
+		OrderMovetoObject(ena_nav_alpha,150);
+		
+		if (IsWithin(ME,ena_nav_alpha,150)) then
+			trans GotoLocation;
+		else
+			if (IsWithin(ME,PlayerMech,400)) then
+				trans GotoLocation;
+			endif;
+		endif;
+
+endstate;
+
+//------------------------------------------------------------------
+//	FollowPathState: follow our path, but keep an eye out for enemies
+//------------------------------------------------------------------
+
+state FollowPathState;
+	code
+		// if (FindEnemy(fleeRange,FT_DEFAULT)) then
+		//	trans FleeState;
+		// endif;
+
+		// if (path <> -1) then
+
+		OrderFormationMove(GroupObjectID(GroupNumber),path,speed,movetype,formationtype,formationdensity,false);
+
+endstate;
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+		if (deathSound <> -1) then	
+			PlaySoundOnce(deathSound);
+		endif;		
+
+		orderDie;
+
+endstate;
+
+
+endfsm.

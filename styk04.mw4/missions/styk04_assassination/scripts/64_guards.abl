@@ -1,0 +1,103 @@
+//*********************************************************************************
+
+fsm Styk04_Guards : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	Integer		attackRange;
+		static	Integer		withdrawRange;
+		static  integer		skillLevel;
+		
+		static	Integer		memInt9;					// Value of Memory Integer 9
+		static  LocPoint	leashPoint;
+
+function Init;
+	code
+		
+		attackRange = 500;
+		withdrawRange = attackRange * 3 / 2;
+		skillLevel = 4;
+		memInt9 = getMemoryInteger(me,9);
+		GetLocation(me, leashPoint);
+		
+endfunction;
+
+state startState;
+	code
+	
+	AssignSkill(skillLevel);
+	SetCombatLeash(me, leashPoint, 500);
+	trans sit;
+	
+endstate;
+
+state sit;
+
+	code
+	
+	orderMoveLookout;
+	
+	if ( isShot ( me ) ) then
+		setTarget(me, whoShot(me) );
+		trans AttackState;
+	endif;
+	
+	if FindEnemy(attackrange, FT_DEFAULT) then
+		trans attackState;
+	endif;
+	
+	if whoDestroyed(me) == playerMech then
+		infamy = infamy + 1;
+	endif;
+	
+	if isDead(me) then
+		trans deadState;
+	endif;
+	
+	
+endstate;
+
+state AttackState;
+
+	code
+		if( leaveAttackState(withdrawrange) or ExtroStarted) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+	
+		if isDead(me) then
+			trans deadState;
+		endif;
+			
+endstate;
+
+state deadState;
+	code
+
+endstate;
+	
+endfsm.

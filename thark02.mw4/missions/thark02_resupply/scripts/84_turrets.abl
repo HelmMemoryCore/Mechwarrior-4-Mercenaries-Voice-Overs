@@ -1,0 +1,186 @@
+
+
+fsm DropShips : integer;
+
+
+//------------------------------------------------------------------
+//     Constants
+//------------------------------------------------------------------
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+//------------------------------------------------------------------
+//     Types
+//------------------------------------------------------------------
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+
+//------------------------------------------------------------------
+//     Variables
+//------------------------------------------------------------------
+
+	var
+		static integer			groupNumber;		// The group number the turrets are in.
+		static integer			memInt9;			// holds the value of memory Integer 9
+		static integer			attackRange;		// At what range do I start shooting?
+		static integer			withdrawRange;		// At what range do I STOP attacking?
+		static integer			skillLevel;			// 1-10, the new skill level variable
+		static integer			findTypes;
+		static locPoint			hidePoint;
+
+//------------------------------------------------------------------
+//     Init: my initialization function
+//------------------------------------------------------------------
+
+function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackrange * 3 / 2;
+		findTypes = FT_DEFAULT;
+		groupNumber				= 10;						// The Group the turrets are in
+		skillLevel				= 5;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		getLocation(ena_hidePoint, hidePoint);
+
+		switch (memint9)
+			case 1:
+			endcase;
+			case 3:
+				orderTakeOff(1);
+			endcase;
+			case 4:
+				orderTakeOff(1);
+			endcase;
+		endswitch;
+		
+endfunction;
+
+//------------------------------------------------------------------
+//	StartState: my initial state
+//------------------------------------------------------------------
+
+state StartState;
+
+	code
+        
+		AssignSkill(skillLevel);	
+		switch(memint9) 
+			case 1:
+				trans WaitState;
+			endcase;
+			case 3:
+				if IsWithin(playermech, me, 1200) then
+					trans landState;
+				endif;
+			endcase;
+			case 4:
+				if obj1 then
+					resetTimer(12);
+					drop4Dies = true;
+                    trans DieState;
+				endif;
+			endcase;
+		endswitch;
+		 	
+endstate;			
+
+//------------------------------------------------------------------
+//	WaitState: wait for someone to come near
+//------------------------------------------------------------------
+
+state WaitState;
+	code
+		if (FindEnemy(attackRange,findTypes)) then
+			trans AttackState;
+		endif;
+
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isDead(me) then
+			trans deadstate;
+		endif;
+
+		OrderMoveLookOut;
+		
+		if obj4 then
+			trans LiftOffState;
+		endif;
+		
+endstate;
+
+//------------------------------------------------------------------
+//	AttackState: let's see what's around, and destroy it
+//------------------------------------------------------------------
+
+state AttackState;
+	code
+		if (LeaveAttackState(withdrawRange)) then
+			OrderStopAttacking;
+			SetTarget(ME,NO_UNIT);
+			trans WaitState;
+		endif;
+
+		if isDead(me) then
+			trans deadstate;
+		endif;
+		
+		OrderAttackTactic(TACTIC_SHOOT_ONLY,true);
+
+		if obj4 then
+			trans LiftOffState;
+		endif;
+
+endstate;
+
+state landState;
+	code
+		if OrderLand then
+			launchHaulers = true;
+			trans WaitState;
+		endif;
+		
+endstate;
+
+state LiftOffState;
+	code
+	
+		if obj4 then
+			OrderTakeOff(150);
+		endif;
+		
+endstate;
+
+state dieState;
+	code
+	
+		orderLand;
+		if TimeGreater(12, 35) then
+			destroy(me);
+		endif;
+		if timeGreater(12, 39) then
+			clearMoveOrder(me);
+			teleport(me, hidePoint);
+		endif;
+		if IsWithin(me, ena_hidePoint, 200) then
+			trans deadState;
+		endif;
+		
+endstate;
+
+//------------------------------------------------------------------
+//	DeadState: OK, I kicked the bucket.
+//------------------------------------------------------------------
+
+state DeadState;
+	code
+	
+endstate;
+
+endfsm.

@@ -1,0 +1,153 @@
+//*********************************************************************************
+
+fsm OutPostmechs : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;		// 1 - 10
+		static integer			memInt9;		// value of Memory Integer number 9
+		static integer			MoveType;		
+		static boolean			pathEndReached;
+
+		static ObjectID			unitPath;		// the path the units follow
+		static LocPoint			spawnPoint;
+		static LocPoint			leashPoint;
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 6;						// 1 - 10
+		memInt9 				= GetMemoryInteger(me, 9);	// Value of memory integer number 9
+		pathEndReached 			= false;
+
+		switch(memInt9)
+			case 1:
+				GetLocation(ena_Nav_Alpha, leashPoint);
+				pathEndReached = true;
+			endcase;
+			case 3:
+				GetLocation(me, leashPoint);
+				pathEndReached = true;
+				skillLevel = skillLevel+2;
+			endcase;
+		endswitch;
+		
+endfunction;
+		
+state StartState;
+
+	code
+	
+	AssignSkill(skillLevel);
+	trans WaitforLaunch; 	
+
+endstate;
+
+state WaitforLaunch;
+	
+	code
+	switch(memInt9)
+		case 1:
+			SetCombatLeash(me, LeashPoint, 500);
+			trans sit;
+		endcase;
+		case 3:
+			SetCombatLeash(me, LeashPoint, 500);
+			trans sit;
+		endcase;
+	endswitch;
+	
+endstate;		
+
+state sit;
+	code
+	
+		OrderMoveLookout;
+		
+		if ( SetMyTarget(attackRange) ) then
+			trans AttackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+		if runAway then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans run;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else;
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if isdead(me) then
+			trans deadState;
+		endif;
+		
+	   	if runAway then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans run;
+		endif;
+   		
+endstate;
+
+state run;
+	code
+	
+	OrderMoveToObject(ena_Nav_Delta, 200);
+	
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,84 @@
+//*********************************************************************************
+
+fsm HalloranV01_plowers : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static	ObjectID	unitPath;					// Path that the unit follows
+		static	Integer		memint9;					// used to hold memory Integer 9
+		static	Integer		speed;						// speed at which the units travel
+		static 	Integer		attackRange;
+		static	Integer		withdrawRange;
+		static	Integer		isWithinRadius;
+		static  boolean		shotByPlayer; 
+ 
+ function Init;
+	code
+	
+		speed = 50;
+		memint9 = 0;
+		attackRange = 600;
+		withdrawRange = attackRange * 3 / 2;
+		isWithinRadius = 2;
+		unitPath = epa_PlowPath;
+		
+		shotByPlayer = false;
+		SetIsShotRadius(me, 30);
+
+endfunction;
+
+state startState;
+	code
+	trans sit;
+endstate;
+
+state sit;
+
+	code
+	
+		OrderMoveResumePatrol(unitPath, speed, MOVE_CIRCLE, true, false) ;
+		
+		//if WhoDestroyed(me) == playerMech then
+		//	infamy = infamy + 1;
+		//endif;
+		
+		if isdead(me) then
+			trans DeadState;
+		endif;
+	
+endstate;
+
+state DeadState;
+	code
+	
+	if (not shotByPlayer) then
+		if WhoDestroyed(me) == PlayerMech then
+			infamy = infamy + 1;
+		endif;
+		shotByPlayer = true;
+	endif;
+	
+endstate;
+
+endfsm.

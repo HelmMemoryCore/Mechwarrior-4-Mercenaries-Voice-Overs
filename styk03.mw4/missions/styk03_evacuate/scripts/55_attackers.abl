@@ -1,0 +1,117 @@
+//*********************************************************************************
+
+fsm Styk03_attackers : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+
+		static LocPoint			spawnPoint;
+		static LocPoint			leashPoint;
+		
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 5;
+
+		getLocation(me, spawnPoint);
+		getLocation(ena_triggerPoint, leashPoint);
+		
+endfunction;
+		
+state StartState;
+
+	code
+		
+		AssignSkill(skillLevel);
+		SetCombatLeash (me, leashPoint, attackRange/2);
+		shutDown(me);
+		teleportToHell(me);
+		trans waitState;
+
+endstate;			
+
+state waitState;
+	code
+	
+	if ( isWithin( ena_triggerPoint, GroupObjectId(1), 1000) ) then
+		teleport(me, spawnPoint);
+		startUp(me);
+		trans sit;
+	endif;
+	
+endstate;
+
+state sit;
+	code
+	
+		orderMoveLookout;
+		
+		if FindEnemy (attackRange, FT_DEFAULT + FT_UNARMED) then
+			trans AttackState;
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+			trans AttackState;
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+		
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isShot ( me ) ) then
+			setTarget(me, whoShot(me) );
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.

@@ -1,0 +1,732 @@
+//*********************************************************************************
+
+fsm Colsm03_Heavy : integer;
+
+//------------------------------------------------------------------
+//
+//	 Constant Definitions
+//
+//------------------------------------------------------------------
+	 const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//	 Type Definitions
+//
+//------------------------------------------------------------------
+	 type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//	 Variable Declarations
+//
+//------------------------------------------------------------------
+	  var
+
+		eternal integer		playermech;			// This is the variable for the player's 'Mech
+			
+		// Standard Nav and Objective Variables
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+												//
+		static boolean		alpharevealed;		// Nav Alpha is shown
+		static boolean		betarevealed;		// Nav Beta is shown
+		static boolean		gammarevealed;		// Nav Gamma is shown
+		static boolean		deltarevealed;		// Nav Delta is shown
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+												//
+		eternal boolean		obj1;				// This indicates whether Objective 1 was completed
+		eternal boolean		obj2;				// This indicates whether Objective 2 was completed
+		eternal boolean		obj3;				// This indicates whether Objective 3 was completed
+		eternal boolean		obj4;				// This indicates whether Objective 4 was completed
+		eternal boolean		obj5;				// This indicates whether Objective 5 was completed
+												//
+		static boolean		obj1revealed;		// This indicates that Objective 1 has been revealed
+		static boolean		obj2revealed;		// This indicates that Objective 2 has been revealed
+		static boolean		obj3revealed;		// This indicates that Objective 3 has been revealed
+		static boolean		obj4revealed;		// This indicates that Objective 4 has been revealed
+		static boolean		obj5revealed;		// This indicates that Objective 5 has been revealed
+		//	
+		
+		static integer		cinema_cut;			// This variable keeps track of what scene a cinema is on.
+		static locpoint		temploc;			// Used for commands that need objects converted to locpoint format
+		static boolean		loser;				// You have lost the mission
+ 
+		// Trigger States
+		eternal integer		RoundNumber;		// Which Solaris VII round this is
+		eternal integer		PlayerSpawn;		// Which location the player spawns at
+		eternal integer		KillGroup;			// Which group the player is up against this round
+		eternal boolean		AllClear;			// Enemies wait until cineractive is over to go into motion
+		eternal integer		Combatants;			// Number of combatants
+		static integer		Ranking;			// What # the player finishes in
+
+		// 2Pass - These are the variables added for second pass
+		eternal integer		NumberDead;			// How many are dead right now
+		static integer		Fame;				// How famous your character is
+		static integer		PlayerKiller;		// The number the player has killed
+		static integer		SolHeavy;			// How many Heavy missions you've played in
+
+		static integer		Combatant1;
+		static integer		Combatant2;
+		static integer		Combatant3;
+		static integer		Combatant4;
+		static integer		Combatant5;
+		static integer		Combatant6;
+		static integer		Combatant7;
+		
+		static integer		Jungle;				// Number of Jungle maps played in
+		static integer		JungChant;			// *!@ ARENA SPECIFIC @!*
+		//
+		
+//------------------------------------------------------------------
+//
+//	 Init Function	(automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+			playermech = getplayervehicle(epl_player0);
+
+			// 10 - First Round
+			GroupAddObject(GroupObjectID(10),eve_Marcus_Wilder);
+			GroupAddObject(GroupObjectID(10),eve_Ellie_Neils);
+			GroupAddObject(GroupObjectID(10),eve_Fen_Cheng);
+			GroupAddObject(GroupObjectID(10),eve_Miria_Stewart);
+			GroupAddObject(GroupObjectID(10),eve_Terrance_Munson);
+
+			// 11 - Second Round
+			GroupAddObject(GroupObjectID(11),eve_Li_Song);
+			GroupAddObject(GroupObjectID(11),eve_2enemy02);
+			GroupAddObject(GroupObjectID(11),eve_2enemy03);
+			GroupAddObject(GroupObjectID(11),eve_2enemy04);
+			GroupAddObject(GroupObjectID(11),eve_2enemy05);
+			GroupAddObject(GroupObjectID(11),eve_2enemy06);
+
+			// 12 - Third Round
+			GroupAddObject(GroupObjectID(12),eve_3enemy01);
+			GroupAddObject(GroupObjectID(12),eve_3enemy02);
+			GroupAddObject(GroupObjectID(12),eve_3enemy03);
+			GroupAddObject(GroupObjectID(12),eve_3enemy04);
+			GroupAddObject(GroupObjectID(12),eve_3enemy05);
+			GroupAddObject(GroupObjectID(12),eve_3enemy06);
+
+			// 13 - Fourth Round
+			GroupAddObject(GroupObjectID(13),eve_4enemy01);
+			GroupAddObject(GroupObjectID(13),eve_4enemy02);
+			GroupAddObject(GroupObjectID(13),eve_4enemy03);
+			GroupAddObject(GroupObjectID(13),eve_4enemy04);
+			GroupAddObject(GroupObjectID(13),eve_4enemy05);
+			GroupAddObject(GroupObjectID(13),eve_4enemy06);
+			GroupAddObject(GroupObjectID(13),eve_4enemy07);
+
+			cinema_cut = 0;
+
+			// Culturals
+			//SetTarget(ede_example2,eve_example3);
+		
+endfunction;
+
+//------------------------------------------------------------------
+//
+//	 Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+
+		StartTimer(10);		// Boom timer - enemies teleport in timer
+		SetActivationDistance(1850);
+		SetMissionNoSalvage(1);
+		// Jungle Heavy specific
+		RoundNumber 	= GetEventInteger("JungleHeavy") + 1;
+		
+		switch (RoundNumber)
+			case 1:
+				PlayerSpawn 	= ena_9;
+				KillGroup		= GroupObjectID(10);
+				Combatants		= 5;
+				Combatant1		= eve_Marcus_Wilder;
+				Combatant2		= eve_Ellie_Neils;
+				Combatant3		= eve_Fen_Cheng;
+				Combatant4		= eve_Miria_Stewart;
+				Combatant5		= eve_Terrance_Munson;
+				//Combatant6		= eve_4enemy06;
+				SetRotation(PlayerMech,-170);
+			endcase;
+			
+			case 2:
+				PlayerSpawn 	= ena_10;
+				KillGroup		= GroupObjectID(11);
+				Combatants		= 6;
+				Combatant1		= eve_Li_Song;
+				Combatant2		= eve_2enemy02;
+				Combatant3		= eve_2enemy03;
+				Combatant4		= eve_2enemy04;
+				Combatant5		= eve_2enemy05;
+				Combatant6		= eve_2enemy06;
+				//SetTargetDesirability(PlayerMech,10);
+				SetRotation(PlayerMech,-155);
+			endcase;
+		
+			case 3:
+				PlayerSpawn 	= ena_3;
+				KillGroup		= GroupObjectID(12);
+				Combatants		= 6;
+				Combatant1		= eve_3enemy01;
+				Combatant2		= eve_3enemy02;
+				Combatant3		= eve_3enemy03;
+				Combatant4		= eve_3enemy04;
+				Combatant5		= eve_3enemy05;
+				Combatant6		= eve_3enemy06;
+				//SetTargetDesirability(PlayerMech,30);
+				SetRotation(PlayerMech,35);
+			endcase;
+
+			case 4:
+				PlayerSpawn 	= ena_2;
+				KillGroup		= GroupObjectID(13);
+				Combatants		= 7;
+				Combatant1		= eve_4enemy01;
+				Combatant2		= eve_4enemy02;
+				Combatant3		= eve_4enemy03;
+				Combatant4		= eve_4enemy04;
+				Combatant5		= eve_4enemy05;
+				Combatant6		= eve_4enemy06;
+				Combatant7		= eve_4enemy07;
+				//SetTargetDesirability(PlayerMech,40);
+				SetRotation(PlayerMech,45);
+			endcase;
+
+		endswitch;
+		
+		//
+		
+		SetRadarNav(ena_Nav_Center,1);
+		RevealNavpoint(ena_Nav_Center);
+		SetNavpoint(ena_Nav_Center);
+
+		//setsensorvisibility(eve_example4,false);
+		
+		checkrange	= 100;		// How far from a nav point before the Betty voice says you've arrived.
+
+		// 2Pass - Intro settings
+		StartMusic("Music\JungleAmb1",3.0,3.5,40);
+		SolHeavy		= GetEventInteger("SolHeavy");
+		Jungle			= GetEventInteger("JungleHeavy");
+		//SolHeavy		= 1;
+		//Jungle			= 1;
+				
+		JungChant	= rand(30,80);
+		StartTimer(4);		// Jungle noises
+		NumberDead	= 0;
+		Fame		= 0;		// 0 - not famous, 1- getting famous, 2- famous, 3- championship
+		//
+		
+		trans opening;
+
+endstate;
+
+	
+state deadState;
+	code
+	
+endstate;
+	
+//------------------------------------------------------------------
+//
+//	 Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+
+	if IsMusicPlaying == false then
+		StartMusic("Music\JungleAmb1",3.0,3.5,40);
+	endif;
+
+// Missions Specific Trigger
+
+	if (Jungle==0) then
+		if (not GetGlobalTrigger(20)) then		// Mission specific bio
+			if (timegreater(1,25)) then
+				SetGlobalTrigger(20,true);
+				PlayVoiceOverOnce("VO\Solaris\MiriaStewartBio",TALKER_FIS);
+			endif;
+		endif;
+	
+		if (not GetGlobalTrigger(21)) then
+			if (GroupNumDead(KillGroup) > NumberDead) then
+				if (not (Combatants - GroupNumDead(KillGroup) == 0)) then
+					if (IsDead(eve_Miria_Stewart)) then		// Did the main guy get killed off
+						SetGlobalTrigger(20,true);		// No mid-mission bios if you nail him first
+						SetGlobalTrigger(21,true);
+						PlayBettySound(COLISEUM_HORN_WAV);
+						KillVoiceOvers;
+						PlayVoiceOverOnce("VO\Solaris\MiriaDead",TALKER_FIS);
+						NumberDead = GroupNumDead(KillGroup);
+						StartTimer(3);		// This is for lull messages
+						ResetTimer(3);
+					endif;
+				endif;
+			endif;
+		endif;
+	endif;
+
+// Jungle Sound Triggers
+
+	if (GroupNumDead(KillGroup) > NumberDead) then		// Air horn
+		PlayBettySound(COLISEUM_HORN_WAV);
+	endif;
+		
+	if (not GetGlobalTrigger(10)) then
+		if (timegreater(4,JungChant)) then
+			SetGlobalTrigger(10,true);
+			JungChant	= rand(10,40);
+			ResetTimer(4);
+			switch (rand(1,6))
+				case 1:
+					PlayBettySound(COLISEUM_JUNGLEBIRD1);
+				endcase;
+				case 2:
+					PlayBettySound(COLISEUM_JUNGLEBIRD2);
+				endcase;
+				case 3:
+					PlayBettySound(COLISEUM_JUNGLEBIRD3);
+				endcase;
+				case 4:
+					PlayBettySound(COLISEUM_JUNGLEBIRD4);
+				endcase;
+				case 5:
+					PlayBettySound(COLISEUM_JUNGLEMONKEY1);
+				endcase;
+				case 6:
+					PlayBettySound(COLISEUM_JUNGLEMONKEY1);
+				endcase;
+			endswitch;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(11)) then
+		if (timegreater(2,3)) then		// You've won, make it for next weight arena is cleared
+			SetGlobalTrigger(11,true);
+			//SetEventInteger("JungleHeavy",0);		// Reset for next match
+		endif;
+	endif;
+
+// Solaris Triggers
+
+	if (SolCycleCheck(PlayerMech)==1) then
+		FailObjective(eob_objective1);
+		Loser = True;
+	endif;
+
+	if (GroupNumDead(KillGroup) > NumberDead) then		// This is death messages
+		NumberDead = GroupNumDead(KillGroup);
+		StartTimer(3);		// This is for lull messages
+		ResetTimer(3);
+		if (NumberDead==1) then
+			SolDeath(0);
+		else
+			if (NumberDead==3) then
+				SolDeath(1);
+			endif;
+		endif;
+		
+		if (Combatants - GroupNumDead(KillGroup) == 2) then		// Final Three
+			SolFinalThree(Fame);
+		endif;
+
+		if (Combatants - GroupNumDead(KillGroup) == 1) then		// Final Duel
+			SolFinalTwo(Fame);
+		endif;
+		
+		PlayerKiller = 0;
+		
+		if (WhoDestroyed(Combatant1)==PlayerMech) then
+			PlayerKiller = PlayerKiller + 1;
+		endif;
+		if (WhoDestroyed(Combatant2)==PlayerMech) then
+			PlayerKiller = PlayerKiller + 1;
+		endif;
+		if (WhoDestroyed(Combatant3)==PlayerMech) then
+			PlayerKiller = PlayerKiller + 1;
+		endif;
+		if (WhoDestroyed(Combatant4)==PlayerMech) then
+			PlayerKiller = PlayerKiller + 1;
+		endif;
+		if (WhoDestroyed(Combatant5)==PlayerMech) then
+			PlayerKiller = PlayerKiller + 1;
+		endif;
+		
+		if (Combatants > 5) then
+			if (WhoDestroyed(Combatant6)==PlayerMech) then
+				PlayerKiller = PlayerKiller + 1;
+			endif;
+		endif;
+		
+		if (Combatants > 6) then
+			if (WhoDestroyed(Combatant7)==PlayerMech) then
+				PlayerKiller = PlayerKiller + 1;
+			endif;
+		endif;
+		
+		if (PlayerKiller == 2) then
+			SolKillTwo(Fame);
+		endif;
+		
+		if (PlayerKiller == 3) then
+			SolKillThree(Fame);
+		endif;
+
+		if (PlayerKiller == 4) then
+			SolKillFour(Fame);
+		endif;
+		
+	endif;
+	
+	if (not GetGlobalTrigger(1)) then		// Lull in the Fight code
+		if (timegreater(3,60)) then			// Was 60 seconds
+			SetGlobalTrigger(1,true);
+			ResetTimer(3);
+			SolLull;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(2)) then
+		if (timegreater(1,40)) then		// Color Commentary for the Heavy category
+			SetGlobalTrigger(2,true);
+			switch (GetEventInteger("SolHeavyColor"))
+				case 0:
+					PlayVoiceOverOnce("VO\Solaris\HeavyColorCommentary1",TALKER_FIS);
+				endcase;
+				case 1:
+					PlayVoiceOverOnce("VO\Solaris\HeavyColorCommentary2",TALKER_FIS);
+				endcase;
+				case 2:
+					PlayVoiceOverOnce("VO\Solaris\HeavyColorCommentary3",TALKER_FIS);
+				endcase;
+				case 3:
+					SolGenericColor;
+				endcase;
+			endswitch;
+			if (GetEventInteger("SolHeavyColor")<>3) then
+				SetEventInteger("SolHeavyColor",GetEventInteger("SolHeavyColor") + 1);
+			endif;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(3)) then
+		if (timegreater(1,35)) then		// Streak messages
+			SetGlobalTrigger(3,true);
+			SolStreak;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(4)) then
+		if (timegreater(2,3)) then		// You've won, add to streak
+			SetGlobalTrigger(4,true);
+			SetEventInteger("SolStreak",GetEventInteger("SolStreak") + 1);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(5)) then
+		if (IsDead(PlayerMech)) then	// You've died, your streak ends
+			SetGlobalTrigger(5,true);
+			SetEventInteger("SolStreak",0);
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(6)) then		// Second Color Commentary
+		if (timegreater(1,100)) then
+			SetGlobalTrigger(6,true);
+			switch (GetEventInteger("SolSecondHeavyColor"))
+				case 0:
+					PlayVoiceOverOnce("VO\Solaris\SecondHeavyColor1",TALKER_FIS);
+				endcase;
+				case 1:
+					PlayVoiceOverOnce("VO\Solaris\SecondHeavyColor2",TALKER_FIS);
+				endcase;
+				case 2:
+					PlayVoiceOverOnce("VO\Solaris\SecondHeavyColor3",TALKER_FIS);
+				endcase;
+				case 3:
+					PlayVoiceOverOnce("VO\Solaris\SecondHeavyColor4",TALKER_FIS);
+				endcase;
+				case 4:
+					PlayVoiceOverOnce("VO\Solaris\SecondHeavyColor5",TALKER_FIS);
+				endcase;
+				case 5:
+					PlayVoiceOverOnce("VO\Solaris\SecondHeavyColor6",TALKER_FIS);
+				endcase;
+				case 6:
+					SolGenericColor;
+				endcase;
+			endswitch;
+			if (GetEventInteger("SolSecondHeavyColor")<>6) then
+				SetEventInteger("SolSecondHeavyColor",GetEventInteger("SolSecondHeavyColor") + 1);
+			endif;
+		endif;
+	endif;
+	
+	if (not GetGlobalTrigger(7)) then		// This plays right away
+		SetGlobalTrigger(7,true);
+		PlayVoiceOverOnce("VO\SolarisStart",TALKER_SPE);
+		StartTimer(3);		// This is for the lull messages
+		SolOpening;
+	endif;
+	
+	if (not GetGlobalTrigger(8)) then
+		if (obj1) then		// Mission complete
+			SetGlobalTrigger(8,true);
+			KillVoiceOvers;
+			PlayVoiceOverOnce("VO\SolarisEnd",TALKER_SPE);
+			ResetTimer(1);
+			KillTimer(1);
+			SolClosing;
+		endif;
+	endif;
+	
+// Obj 1 - Destroy all enemy 'Mechs
+
+	if (not Obj1) then
+		if (GroupAllDead(KillGroup)) then
+			SuccessObjective(eob_objective1);
+			StartTimer(2);		// You've won!
+			Obj1 = True;
+		endif;
+	endif;
+
+// Victory and Loss conditions
+													   
+	if (timegreater(2,5)) or (IsDead(PlayerMech)) then
+		  
+		// Salvage Added by WHO on DATE
+		//
+
+		SolEnding(1,3,PlayerKiller,Combatants - NumberDead + 1);
+		// Arena, Class, Number of Kills, Placing
+
+		switch (Combatants - NumberDead)
+			case 0:		// FIRST PLACE
+				SetSolarisPlacement(1);
+				AddSolarisMoneyToBalance(2500000);
+			endcase;
+			case 1:		// SECOND PLACE
+				SetSolarisPlacement(2);
+				SolSecondPlace;
+				AddSolarisMoneyToBalance(2000000);
+			endcase;
+			case 2:		// THIRD PLACE
+				SetSolarisPlacement(3);
+				SolThirdPlace;
+				AddSolarisMoneyToBalance(1500000);
+			endcase;
+		endswitch;
+
+		if (IsDead(PlayerMech)) then
+			endmission(true,7);
+			//KillVoiceOvers;
+			trans DeadState;
+		endif;
+		
+		if (loser) then
+			EndMission(false,5);
+			trans lost;
+		else
+			trans won;	
+		endif;
+		
+	endif;
+
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;	  
+
+	code
+
+		if (cinemaskip) then
+			KillVoiceOvers;	 
+			cinema_cut = 0;	 
+			KillTimer(gti_timer_21);
+			SetGlobalTrigger(0,true);
+			playerai(epl_player0,false);
+			StartTimer(1);		// This is the mission start timer
+			ResetTimer(1);
+			CinemaEnd;		  
+			SetCompositingEnabled(True);
+			revealobjective(eob_objective1);
+			AllClear = True;
+			trans sit;
+		endif;
+		
+		switch (cinema_cut)
+
+			case 0:
+				GetLocation(PlayerSpawn,TempLoc);
+				Teleport(PlayerMech,TempLoc);
+				CinemaStart;
+				SetActiveCamera(eca_CameraShip);
+				
+				// Intro Message Checker
+				RandIntroCamera(PlayerMech,5);		// Jungle  = 5
+				
+				if (not GetEventFlag("SolGrand")) then
+					switch (Jungle)		// First play the set intros
+						case 0:
+							PlayVoiceOverOnce("VO\Solaris\IntroJungleHeavy",TALKER_FIS);
+						endcase;
+					endswitch;
+				endif;
+
+				if (Jungle > 0) or GetEventFlag("SolGrand") then	// Then play the generic intros
+					switch (SolHeavy)
+						case 0:
+							PlayVoiceOverOnce("VO\Solaris\IntroGenericHeavy1",TALKER_FIS);
+							SetEventInteger("SolHeavy",1);
+						endcase;
+						case 1:
+							PlayVoiceOverOnce("VO\Solaris\IntroGenericHeavy2",TALKER_FIS);
+							SetEventInteger("SolHeavy",2);
+						endcase;
+						case 2:
+							PlayVoiceOverOnce("VO\Solaris\IntroGenericHeavy3",TALKER_FIS);
+							SetEventInteger("SolHeavy",3);
+						endcase;
+						case 3:
+							SolGenericIntro;
+						endcase;
+					endswitch;
+				endif;
+				
+				if (SolHeavy==0) then
+					PlayVoiceOverOnce("VO\Solaris\IntroFirstHeavyAddition",TALKER_FIS);
+					SetEventInteger("SolHeavy",1);
+				endif;
+				
+				SetEventInteger("JungleHeavy",GetEventInteger("JungleHeavy") + 1);
+				//
+				
+				cinema_cut = cinema_cut + 1;
+				
+				starttimer(21);			// This is the cineractive counter.
+				resettimer(21);
+			endcase;
+			
+			case 1:
+				if (IsVoiceOverPlaying==False) then
+					ResetTimer(21);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+				
+			case 2:
+				if (timegreater(21,2)) then
+					KillVoiceOvers;
+					cinema_cut = 0;
+					KillTimer(gti_timer_21);
+					SetGlobalTrigger(0,true);
+					playerai(epl_player0,false);
+					StartTimer(1);		// This is the mission start timer
+					ResetTimer(1);
+					CinemaEnd;
+					revealobjective(eob_objective1);	// Reveal the objectives
+					SetCompositingEnabled(True);
+					AllClear = True;
+					trans sit;
+				endif;
+			endcase;
+				
+		endswitch;
+	
+endstate;
+
+state won;	  
+
+	code
+		
+		if (cinemaskip) then
+			cinema_cut = 20;	
+			playerai(epl_player0,false);
+			KillVoiceOvers;
+			Endmission(true,1); 
+		endif;
+
+		switch cinema_cut
+			case 0:	
+				StartMusic("Music\GenericVictory1",3.0,3.5,50);					 
+				SetCompositingEnabled(False);
+				CinemaStart;
+				setactivecamera (eca_cameraship);				
+				
+				// Heavy Win Message Check
+				RandClosingCamera(PlayerMech);
+				switch (GetEventInteger("JungleHeavyWin"))
+					case 0:
+						PlayVoiceOverOnce("VO\Solaris\VictoryJungleHeavy",TALKER_FIS);
+						SetEventInteger("JungleHeavyWin",1);
+					endcase;
+					case 1:
+						PlayVoiceOverOnce("VO\Solaris\VictoryJungleHeavy2",TALKER_FIS);
+						SetEventInteger("JungleHeavyWin",2);
+					endcase;
+					case 2:
+						SolGenericVictory;
+					endcase;
+				endswitch;
+				//
+				
+				playerai(epl_player0,true);
+				Cinema_cut=Cinema_cut+1;
+			endcase;
+			
+			case 1:
+				if (IsVoiceOverPlaying==False) then
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;			
+
+			case 2:
+				endmission(true,2);
+				Cinema_cut=Cinema_cut+1;
+			endcase;
+			
+		endswitch;
+	
+endstate;
+
+state lost;
+
+		code
+		
+		switch cinema_cut
+		
+			case 0:	
+			
+			endcase;
+			
+			case 1:
+			
+			endcase;
+			
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************

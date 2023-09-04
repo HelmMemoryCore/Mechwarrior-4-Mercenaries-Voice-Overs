@@ -1,0 +1,88 @@
+fsm CentralPark_Destruction : integer;		
+
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+
+	var
+		static boolean				CrowdRests;		// The crowd won't cheer all thee time
+		static integer				ChantTimer;		// Get over this time and the crowd is ready to chant
+
+function init;
+	code
+		SetupScoring_Destruction;
+
+		TeamSetNav(0,ena_Nav_Center);
+
+endfunction;
+
+function Chanting;
+	var
+
+	code
+
+		switch (rand(1,4))
+			case 1:
+				PlayTeamBettysound(9, COLISEUM_JUNGLEBIRD1);
+			endcase;
+			case 2:
+				PlayTeamBettysound(9, COLISEUM_JUNGLEBIRD2);
+			endcase;
+			case 3:
+				PlayTeamBettysound(9, COLISEUM_JUNGLEBIRD3);
+			endcase;
+			case 4:
+				PlayTeamBettysound(9, COLISEUM_JUNGLEBIRD4);
+			endcase;
+			case 5:
+				//PlayTeamBettysound(9, COLISEUM_JUNGLEMONKEY1);
+			endcase;
+			case 6:
+				//PlayTeamBettysound(9, COLISEUM_JUNGLEMONKEY2);
+			endcase;
+		endswitch;
+		
+		return;
+endfunction;
+
+state startState;
+	code
+	
+		revealnavpoint(ena_Nav_Center);
+		SetNavpoint(ena_Nav_Center);
+
+		StartTimer(1);		// Chant Timer
+		ChantTimer = Rand(20,90);
+
+        // not needed because the COLISEUMAMB_MUSIC is specially triggered by the C++ code at load time
+        //StartMusicAll(COLISEUMAMB_MUSIC);
+			
+		trans sit;
+
+endstate;
+
+state sit;
+	code
+
+		if (timegreater(1,ChantTimer)) then
+				Chanting;
+				ChantTimer = Rand(20,90);
+				ResetTimer(1);
+		endif;
+
+        // not needed because the coliseum music is specially set to loop
+		//if IsMusicPlaying == false then
+        //    StartMusicAll(COLISEUMAMB_MUSIC);
+		//endif;
+
+endstate;
+	
+state deadState;
+	code
+
+endstate;
+	
+endfsm.
+

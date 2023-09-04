@@ -1,0 +1,167 @@
+//*********************************************************************************
+
+fsm Styk02_Friendlies : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+		static integer			attackRange;	// At what range do I start shooting?
+		static integer			withdrawRange;	// At what range do I stop attacking?
+		static integer			skillLevel;
+		static boolean			pathEndReached;
+		static integer			memint9;
+
+		static ObjectID			unitPath;	// the path the units follow
+		static LocPoint			spawnPoint;		
+		static LocPoint			LeashPoint;
+		
+		static boolean			happyHammers;
+		static boolean			uziel01;
+		static boolean			uziel02;
+		static boolean			chimera;
+				
+
+ function Init;
+	code
+		// script-specific variables
+		attackRange				= 800;
+		withdrawRange			= attackRange * 3 / 2;
+		skillLevel				= 3;
+		pathEndReached 			= false;
+		unitPath				= epa_hammerPath;
+		memint9					= getMemoryInteger(me,9);
+		
+		happyHammers = GetEventFlag("S01_HappyHammers");
+		uziel01		 = GetEventFlag("S01_Uziel01");
+		uziel02		 = GetEventFlag("S01_Uziel02");
+		if uziel01 and uziel02 then
+			chimera = false;
+		else
+			chimera = GetEventFlag("S01_Chimera");
+		endif;
+
+endfunction;
+		
+state StartState;
+
+	code
+	
+		AssignSkill(skillLevel);
+		GetLocation(me, spawnPoint);
+		shutDown(me);
+		teleportToHell(me);
+		trans waitstate;
+		
+endstate;
+
+state waitState;
+	code
+	
+		if launchHammer then
+			if happyHammers then
+				switch(memint9)
+					case 1:
+						teleport(me, spawnPoint);
+						startup(me);
+						trans sit;
+					endcase;
+					case 2:
+						if uziel01 then
+							teleport(me, spawnPoint);
+							startup(me);
+							trans sit;
+						else
+							GroupRemoveObject(groupObjectID(9), me);
+						endif;
+					endcase;
+					case 3:
+						if uziel02 then
+							teleport(me, spawnPoint);
+							startup(me);
+							trans sit;
+						else
+							GroupRemoveObject(groupObjectID(9), me);
+						endif;
+					endcase;
+					case 4:
+						if chimera then
+							teleport(me, spawnPoint);
+							startup(me);
+							trans sit;
+						else
+							GroupRemoveObject(groupObjectID(9), me);
+						endif;
+					endcase;
+				endswitch;
+			endif;
+			trans deadstate;
+		endif;
+		
+endstate;			
+
+state sit;
+	code
+	
+		if PathEndReached then
+			OrderMoveToObject(playerMech, 200);
+		else
+            if OrderMoveResumePatrol(unitPath, 200, MOVE_NOCYCLE, true, true) then
+				pathEndReached = true;
+			endif;
+		endif;
+
+		if FindEnemy(attackRange, FT_DEFAULT) then
+			trans attackState;
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+
+endstate;
+
+state AttackState;
+
+	code
+	
+		if( leaveAttackState(withdrawrange) ) then
+			orderStopAttacking;
+			settarget(me, NO_UNIT);
+			trans sit;
+		else
+			OrderAttackTactic(TACTIC_PICK_BEST, true);
+		endif;
+		
+		if ( isDead(me)) then
+			trans deadstate;
+		endif;
+			
+endstate;
+
+state deadstate;
+	code
+		
+endstate;
+
+endfsm.
+

@@ -1,0 +1,74 @@
+
+//*********************************************************************************
+
+fsm playeraifsm : integer;
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+	const
+		#include_ <content\ABLScripts\mwconst.abi>
+
+
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+	type
+		#include_ <content\ABLScripts\mwtype.abi>
+	
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+	var
+	
+	static ObjectID	playerPath;		//the path the player's mech follows.
+
+//------------------------------------------------------------------
+//
+//     Local Functions
+//
+//------------------------------------------------------------------
+
+function init;
+	code
+	
+	playerPath = epa_playerPath;
+	
+endfunction;
+
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+	state startState;
+		code
+		trans sit;
+	endstate;
+	
+	state sit;
+		code
+		
+		if obj3 then
+			orderMoveLookOut;			//End of mission, stand still
+		else
+			OrderMoveTo(playerPath, 200, MOVE_NOCYCLE, true, false);  //Beginning of mission, run the path
+		endif;
+		
+	endstate;
+	
+  state deadState;
+		code
+  endstate;
+
+
+endfsm.
+//******************************************************************
+

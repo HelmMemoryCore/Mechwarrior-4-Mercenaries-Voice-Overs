@@ -1,0 +1,593 @@
+
+//*********************************************************************************
+
+fsm Hesp04_Stealth : integer;		
+
+//------------------------------------------------------------------
+//
+//     Constant Definitions
+//
+//------------------------------------------------------------------
+     const
+
+		#include_ <content\ABLScripts\mwconst.abi>
+//------------------------------------------------------------------
+//
+//     Type Definitions
+//
+//------------------------------------------------------------------
+     type
+
+		#include_ <content\ABLScripts\mwtype.abi>
+
+//------------------------------------------------------------------
+//
+//     Variable Declarations
+//
+//------------------------------------------------------------------
+      var
+			
+		eternal integer playermech;
+		static boolean		alphareached;		// Nav Alpha reached
+		static boolean		betareached;		// Nav Beta reached
+		static boolean		gammareached;		// Nav Gamma reached
+		static boolean		deltareached;		// Nav Delta reached
+		static integer		checkrange;			// How far from the Nav Point you have to be											
+		
+		eternal boolean obj1;
+		eternal boolean obj1Failed;
+		static  boolean atAlpha;
+		eternal boolean obj2;
+		eternal boolean obj2TimeStarted;
+		eternal boolean obj3;
+		eternal boolean obj3TimeStarted;
+		eternal boolean obj4;
+		eternal boolean follow;
+		
+		eternal boolean startTheFun;
+		
+		eternal integer BaseGroup;
+		static integer alphaTimer;
+		static boolean reinitiate;
+		static integer shotCounter;	//How often the player has shot when at alpha.
+		
+		static integer	cinema_cut;
+		
+		static boolean FirstAlphaVO;
+		static boolean SecondAlphaVO;
+		static boolean FirstBetaVO;
+		static boolean SecondBetaVO;
+		static boolean FirstGammaVO;
+		static boolean SecondGammaVO;
+		static boolean FirstSensorVO;
+		static boolean SecondSensorVO;
+		
+		eternal Integer DavionRating;
+		eternal Integer SteinerRating;
+		eternal Integer Nobility;
+		eternal Integer Infamy;
+		
+//------------------------------------------------------------------
+//
+//     Init Function    (automatically run first time through)
+//
+//------------------------------------------------------------------
+
+function init;
+	var
+		integer i;
+
+	code
+
+		playermech = getplayervehicle(epl_player0);	
+		GroupAddObject(GroupObjectId(1),playermech);
+		//SetTargetDesirability(playermech, -1);
+
+		// BaseMechs
+		BaseGroup = GroupObjectID(10);
+		GroupAddObject(BaseGroup,eve_Base02);
+		GroupAddObject(BaseGroup,eve_Base03);
+		GroupAddObject(BaseGroup,eve_Base04);
+        SetGroupAI(BaseGroup,GROUPAI_MOODSQUAD);
+	
+		obj1 = false;
+		obj1Failed = false;
+		atAlpha = false;
+		obj2 = false;
+		obj2TimeStarted = false;
+		obj3 = false;
+		obj3TimeStarted = false;
+		obj4 = false;
+		follow = false;		//Set in friendlies.abl, used in mechs.abl
+		alphaTimer = gti_timer_5;	//Used for Objective01
+		cinema_cut = 0; 						
+		startTheFun = false;
+		
+		DavionRating = GetPreviousDavionFactionRating;
+		Davionrating = DavionRating + 15;
+		SteinerRating = GetPreviousSteinerFactionRating;
+		SteinerRating = SteinerRating;
+		Nobility = GetPreviousNobility;
+		nobility = nobility;
+		Infamy = GetPreviousInfamy;
+		infamy = infamy + 3;
+		
+		
+endfunction;
+
+//------------------------------------------------------------------
+//
+//     Main Code
+//
+//------------------------------------------------------------------
+state startState;
+
+	code	
+	CheckRange = 150;
+	RevealObjective(eob_Objective01);
+	resetTimer(6);		//Used to Check weapons fire at Alpha
+	
+	RevealNavpoint(ena_Nav_Alpha);		
+	RevealNavpoint(ena_Nav_Beta);
+	RevealNavpoint(ena_Nav_Gamma);
+	setRadarNav(ena_Nav_Alpha, 1);
+	setRadarNav(ena_Nav_Beta, 2);
+	setRadarNav(ena_Nav_Gamma, 3);
+	setRadarNav(ena_Nav_Delta, 4);
+	SetNavPoint(ena_Nav_Alpha);
+	
+	//Intro VO
+	PlayVoiceOverOnce("VO\Hesp\MI4\intro1", talker_CAS);
+	StartMusic("Music\sneakPeek",0.0,3.0,40);
+	
+	trans Opening;
+
+endstate;
+
+	
+state deadState;
+	code
+endstate;
+	
+//------------------------------------------------------------------
+//
+//     Sit state : description
+//
+//------------------------------------------------------------------
+state sit;
+
+	code
+	//Music
+	if (not ismusicplaying) then
+		StartMusic("Music\arcticambloop",0.0,3.0,40);
+	endif;
+	
+	//VO
+	if (not firstSensorVO) then
+		if timeGreater(alphaTimer, 6) then
+			if (GetSensorMode(PlayerMech) == SENSOR_ACTIVE) then
+				PlayVoiceOverOnce("VO\Hesp\MI4\TurnOffRadar", talker_CAS);
+			else
+				PlayVoiceOverOnce("VO\Hesp\MI4\ApproachAndHold", talker_CAS);
+				HelpMessage(eob_Helptext2, 15);
+				firstSensorVO = true;
+			endif;
+		endif;
+	else
+		if (not secondSensorVO) then
+			if (GetSensorMode(PlayerMech) == SENSOR_ACTIVE) then
+				PlayVoiceOverOnce("VO\Hesp\MI4\RadarPassive", talker_CAS);
+				secondSensorVO = true;
+			endif;
+		endif;
+	endif;
+	if (not firstAlphaVO) then
+		if IsWithin(playerMech, ena_Nav_Alpha, 150) then
+			PlayVoiceOverOnce("VO\Hesp\MI4\AtAlpha", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI4\HoldThere", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI4\Acknowedged", talker_SPE);
+			firstAlphaVO = true;
+		endif;
+	endif;
+	if (not secondAlphaVO) then
+		if obj1 then
+			PlayVoiceOverOnce("VO\Hesp\MI4\BetaNow", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI4\ImOnIt", talker_SPE);
+			secondAlphaVO = true;
+		endif;
+	endif;
+	if (not FirstBetaVO) then
+		if IsWithin(playerMech, ena_Nav_Beta, 100) then
+			PlayVoiceOverOnce("VO\Hesp\MI4\AtLab", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI4\Takes20Seconds", talker_CAS);
+			FirstBetaVO = true;
+		endif;
+	endif;
+	if (not SecondBetaVO) then
+		if Obj2 then
+			PlayVoiceOverOnce("VO\Hesp\MI4\PairOfZeus", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI4\CheckOtherLab", talker_CAS);
+			SecondBetaVO = true;
+		endif;
+	endif;
+	if (not FirstGammaVO) then
+		if IsWithin(playerMech, ena_Nav_Gamma, 100) then
+			PlayVoiceOverOnce("VO\Hesp\MI4\AtWeaponsLab", talker_SPE);
+			FirstGammaVO = true;
+		endif;
+	endif;
+	if (not SecondGammaVO) then
+		if Obj3 then
+			PlayVoiceOverOnce("VO\Hesp\MI4\Bingo", talker_SPE);
+			PlayVoiceOverOnce("VO\Hesp\MI4\GoToDeltaNow", talker_CAS);
+			PlayVoiceOverOnce("VO\Hesp\MI4\BestSpeedToDelta", talker_SPE);
+			StartMusic("Music\SkitterSprint",0.0,3.0,40);
+			SecondGammaVO = true;
+		endif;
+	endif;
+//VO End
+	
+				
+			
+	
+		// Objective 01
+		if (not obj1) then
+			if (not IsWithin(BaseGroup, ena_trigger02, 400)) then
+				successObjective(eob_Objective01);
+				revealObjective(eob_Objective02);
+				setNavPoint(ena_Nav_Beta);
+				obj1 = true;
+			else
+				if IsWithin(playerMech, ena_Nav_Alpha, 200) then  //If player shoots near Alpha or has Radar on, Obj1 fails
+					if (GetSensorMode(PlayerMech) == SENSOR_ACTIVE) then
+						failObjective(eob_objective01);
+						resetTimer(21);
+						cinema_cut = 0;
+						trans lostAlpha;	//Player did not shut off radar before reaching alpha
+					endif;
+					
+	    			if playershooting(epl_player0,1) and timeGreater(6, 5) then
+						shotCounter = shotCounter + 1;
+						if shotCounter > 3 then
+							failObjective(eob_objective01);
+							resetTimer(21);
+							cinema_cut = 0;
+							trans lostAlpha;	//PLayer shot too often at alpha
+						endif;
+						resetTimer(6);
+	    			endif;		
+					atAlpha = true;  //Player was here at some point
+				else	// must get to Alpha in 60 Seconds, and must stay until obj1 is true
+					if TimeGreater(alphaTimer, 60) then
+						if atAlpha then
+							failObjective(eob_objective01);
+							resetTimer(21);
+							cinema_cut = 0;
+							trans lostAlpha;	//Player left Alpha too early
+						else
+							HideObjective(eob_objective01);
+							revealObjective(eob_objective05);
+							failObjective(eob_objective05);
+							resetTimer(21);
+							cinema_cut = 0;
+							trans lostAlpha;	//Player did not reach alpha in time
+						endif;
+					endif;
+				endif;
+			endif;
+		endif;
+	
+		// Objective 02
+		if (not obj2) then
+			if (not obj2TimeStarted) then
+				if IsWithin(playerMech, ena_Nav_Beta, 100) then
+					resetTimer(2);
+					obj2TimeStarted = true;
+					if reinitiate then
+						PlayVoiceOver("VO\Hesp\MI4\ReinitiatingScan", talker_SPE);
+						reinitiate = false;
+					endif;
+				endif;
+			else
+				if TimeGreater(2,30) then
+					SuccessObjective(eob_Objective02);
+					revealObjective(eob_Objective03);
+					setNavPoint(ena_Nav_Gamma);
+					obj2 = true;
+					killTimer(2);
+				endif;
+				if (not IsWithin(playerMech, Ena_Nav_Beta, 100) ) then
+					PlayVoiceOver("VO\Hesp\MI4\100MetersToScan", talker_CAS);
+					reinitiate = true;
+					obj2TimeStarted = false;
+				endif;
+			endif;			
+		endif;
+		
+		// Objective 03
+		if (not obj3) then
+			if (not obj3TimeStarted) then
+				if IsWithin(playerMech, ena_Nav_Gamma, 100) then
+					resetTimer(3);
+					obj3TimeStarted = true;
+					if reinitiate then
+						PlayVoiceOver("VO\Hesp\MI4\ReinitiatingScan", talker_SPE);
+						reinitiate = false;
+					endif;
+				endif;
+			else
+				if TimeGreater(3,30) then
+					SuccessObjective(eob_Objective03);
+					obj3 = true;
+					killTimer(3);
+					RevealObjective(eob_Objective04);
+					RevealNavpoint(ena_Nav_Delta);
+					setNavPoint(ena_Nav_Delta);
+				endif;
+				if (not IsWithin(playerMech, ena_Nav_Gamma, 100) ) then
+					PlayVoiceOver("VO\Hesp\MI4\100MetersToScan", talker_CAS);
+					reinitiate = true;
+					obj3TimeStarted = false;
+				endif;
+			endif;			
+		endif;
+		
+		// Objective 04
+		if obj2 and obj3 then
+			if IsWithin(playerMech, ena_nav_Delta, 100) then
+				successObjective(eob_objective04);
+				obj4 = true;
+				SetTargetDesirability(playerMech, -1);
+			endif;
+		endif;
+		
+		if obj1 and obj2 and obj3 and obj4 then
+			resetTimer(21);
+			cinema_cut = 0;
+			trans won;
+		endif;
+		
+//Fail the mission when the player dies
+	if (isdead(playermech)) then
+		failobjectiveall(9);
+		resetTimer(21);
+		cinema_cut = 0;
+		trans lost;
+	endif;
+
+// Betty speaks when reaching Nav Point
+
+	if (not alphareached) then
+		if (isnavrevealed(ena_nav_alpha)) then
+			if (iswithin(playermech,ena_nav_alpha,checkrange)) then
+				playvoiceover("VO\generic\navalpha",talker_Bet);
+				alphareached = true;
+				//SetNavpoint(ena_Nav_Beta);
+			endif;
+		endif;
+	endif;
+
+	if (not betareached) then
+		if (isnavrevealed(ena_nav_beta)) then
+			if (iswithin(playermech,ena_nav_beta,checkrange)) then
+				playvoiceover("VO\generic\navbeta",talker_Bet);
+				betareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not gammareached) then
+		if (isnavrevealed(ena_nav_gamma)) then
+			if (iswithin(playermech,ena_nav_gamma,checkrange)) then
+				playvoiceover("VO\generic\navgamma",talker_Bet);
+				gammareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+
+	if (not deltareached) then
+		if (isnavrevealed(ena_nav_delta)) then
+			if (iswithin(playermech,ena_nav_delta,checkrange)) then
+				playvoiceover("VO\generic\navdelta",talker_Bet);
+				deltareached = true;
+				//SetNavpoint(ena_Nav_Gamma);
+			endif;
+		endif;
+	endif;
+				
+endstate;
+
+//-----------------------------------------
+//HERE THERE BE CINEMAS
+//-----------------------------------------
+
+state opening;
+	code
+
+		if cinemaSkip then
+			CinemaEnd;
+			SetCompositingEnabled(true);			
+			playerAI(playermech, false);
+			
+			resetTimer(alphaTimer);
+			HelpMessage(eob_Helptext, 15);
+			//HelpMessage(eob_Helptext2, 15);
+			startTheFun = true;
+			killVoiceOvers;
+			trans sit;
+		endif;
+ 	
+		switch (cinema_cut)
+			case 0:
+				SetActiveCamera(eca_CameraShip);
+				playerAI(epl_player0, true);
+				SetCompositingEnabled(false);
+				CinemaStart;
+				FadeToBlack(0.0);
+				Fadefromblack(2.0);
+				Targetfollowobject(etu_turret01);
+				camerafollowobject(etu_turret01);
+				targetoffset(0.0, 0.0, 0.0, 0.0, false);
+                Cameraoffset(-470.0, 60.0, -330.0, 0.0, false);       
+                Cameraoffset(-225.0, 30.0, -165.0, 10.0, false);       
+				resetTimer(21);
+				cinema_cut = cinema_cut + 1;
+				startTheFun = true;
+			endcase;
+			case 1:
+				if TimeGreater(21, 12) then			//Timer 21, standard cinema timer
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+			case 2:
+				CinemaEnd;
+				SetCompositingEnabled(true);			
+				playerAI(playermech, false);
+				
+				resetTimer(alphaTimer);
+				HelpMessage(eob_Helptext, 15);
+				//HelpMessage(eob_Helptext2, 15);
+				startTheFun = true;
+				trans sit;
+			endcase;
+		endswitch;
+endstate;
+
+state won;
+	code
+		
+		switch cinema_cut
+			case 0:
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericVictory1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericVictory2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				PlayVoiceOverOnce("VO\Hesp\MI4\Close1", talker_CAS);
+				PlayVoiceOverOnce("VO\Hesp\MI4\Close2", talker_SPE);
+				cinema_cut = cinema_cut +1;
+			endcase;
+			
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+		
+			case 2:	
+				//EndMission(true, 10);
+				SetActiveCamera(eca_CameraShip);
+				PullOutCamera(playermech, playermech, 150.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+								
+				SetCurrentInfamy(Infamy);
+				SetCurrentNobility(Nobility);
+				SetCurrentDavionFactionRating(DavionRating);
+				SetCurrentSteinerFactionrating(SteinerRating);
+				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 3:
+				if (not IsVoiceOverPlaying) then
+					EndMission(true, 3);
+					cinema_cut = cinema_cut + 1;
+				endif;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lost;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,3)
+					case 1:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\SpecterDestroyed3", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:	
+				EndMission(false, 10);
+				//SetActiveCamera(eca_CameraShip);
+				//PullOutCamera(playermech, playermech, 250.0, 10.0, true);				
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+state lostAlpha;
+	code
+	
+		switch cinema_cut
+			case 0:
+				KillVoiceOvers;
+				switch rand(1,2)
+					case 1:
+						StartMusic("Music\genericLoss1",3.5,3.0,50);
+					endcase;
+					case 2:
+						StartMusic("Music\genericLoss2",3.5,3.0,50);
+					endcase;
+				endswitch;
+				switch rand(1,5)
+					case 1:
+						PlayVoiceOver("VO\Generic\Abort", talker_CAS);
+					endcase;
+					case 2:
+						PlayVoiceOver("VO\Generic\Abort2", talker_CAS);
+					endcase;
+					case 3:
+						PlayVoiceOver("VO\Generic\Abort3", talker_CAS);
+					endcase;
+					case 4:
+						PlayVoiceOver("VO\Generic\Abort4", talker_CAS);
+					endcase;
+					case 5:
+						PlayVoiceOver("VO\Generic\Abort5", talker_CAS);
+					endcase;
+				endswitch;
+				cinema_cut = cinema_cut + 1;
+			endcase;
+			case 1:
+				if TimeGreater(21,5) then
+					cinema_cut = cinema_cut +1;
+				endif;
+			endcase;
+			case 2:	
+				EndMission(false, 10);
+				SetActiveCamera(eca_CameraShip);
+				HeadOnCamera(playerMech, playerMech, 25.0, 10.0, true);				
+				UpdateCameraPosition(eca_CameraShip);     
+				cinema_cut = cinema_cut + 1;
+			endcase;
+		endswitch;
+	
+endstate;
+
+endfsm.
+//******************************************************************
+
